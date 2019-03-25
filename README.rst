@@ -1,6 +1,7 @@
-Loop pushdown translator
-==========================
+Loop pushdown translator (LPT)
+=================================
 
+Frelpt is a loop pushdown translation tool written in Python.
 
 Documentation
 ----------------

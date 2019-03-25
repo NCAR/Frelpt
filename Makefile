@@ -79,8 +79,8 @@ doc: ## generate Sphinx HTML docsumentation, including API docs
 	$(BROWSER) doc/build/html/index.html
 
 pushdoc: doc
-	cp -rf doc/build/html/* ${DOCREPO}
-	cd ${DOCREPO}; git add . ; git commit -m "pushed new updates"
+	cp -rf doc/build/html/. ${DOCREPO}
+	cd ${DOCREPO}; git add . ; git commit -m "pushed new updates"; git push origin master
 	
 servedoc: doc ## compile the docss watching for changes
 	watchmedo shell-command -p '*.rst' -c '$(MAKE) -C doc html' -R -D .
