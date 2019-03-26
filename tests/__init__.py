@@ -2,7 +2,7 @@ import unittest
 
 from .test_units import test_classes as unit_tests
 
-def seqgentools_unittest_suite():
+def frelpt_unittest_suite():
 
     loader = unittest.TestLoader()
     suite = unittest.TestSuite()

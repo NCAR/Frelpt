@@ -1,9 +1,6 @@
-.. frelpt documentation master file, created by
-   sphinx-quickstart on Mon Mar 25 14:23:20 2019.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+.. _Frelpt:
 
-Frelpt Documentation
+Frelpt
 ==================================
 
 Frelpt is a loop pushdown translation tool written in Python.
@@ -17,15 +14,15 @@ the modern processing units require a plenty of parallelization and/or vectoriza
 concentrated on a relatively small code region. For example, to utilize GPU well, it is essential
 to create a computation intensive kernel and run the kernel on GPU as long as possible.
 
-Loop pushdown effectively transforms a program structure such that loops are located in the bottom of
-Fortran call stack so that computation intensitive increases locally at the bottom of call stack.
+Loop pushdown effectively transforms a program structure such that loops are moved to the bottom of
+Fortran call stack so that computation intensity increases locally at the code regions pointed by the bottom of call stack.
 
 
 .. toctree::
-   :maxdepth: 2
+    :maxdepth: 2
 
-   getting_started
-
+    getting_started
+    arch_design.rst
 
 Indices and tables
 ==================

@@ -1,5 +1,5 @@
-Loop pushdown translator (LPT)
-=================================
+Fortran Research Engine - loop pushdown translator (Frelpt)
+=============================================================
 
 Frelpt is a loop pushdown translation tool written in Python.
 
