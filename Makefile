@@ -98,7 +98,8 @@ install: clean ## install the package to the active Python's site-packages
 	python setup.py install
 
 dev-install: clean ## install the package locally
-	python setup.py develop --user
+	python setup.py develop
+	#python setup.py develop --user --user is not work with virtualenv
 
 ####### NOTES #######
 # >>> /usr/local/Cellar/python3/3.6.3/Frameworks/Python.framework/Versions/3.6/bin/virtualenv .venv -p python3

@@ -1,0 +1,4 @@
+test.exe
+test_main_cpu.f90
+test_mo_column_cpu.f90
+test_mo_column_extra_cpu.f90

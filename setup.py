@@ -16,6 +16,11 @@ setup(
     packages=find_packages(),
     test_suite="tests.frelpt_unittest_suite",
     url='https://github.com/NCAR/Frelpt',
+    entry_points={
+        'console_scripts': [
+            'frelpt = frelpt.__main__:main'
+        ]
+    },
     classifiers=[
         'Intended Audience :: Developers',
         'Natural Language :: English',
