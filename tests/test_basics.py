@@ -23,14 +23,15 @@ class BasicTests(unittest.TestCase):
     def test_basic(self):
 
         retval = frelpt.run(argv=[
-            "frelpt_basic_test",
             _target,
             _clean_cmd,
             _build_cmd,
             "--outdir", str(self.tempdir),
-            "--debug",
+            "--log", "basictests",
         ])
  
+            #"--debug",
+
         self.assertEqual(retval, 0) 
 
 test_classes = (BasicTests,)

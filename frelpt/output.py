@@ -4,7 +4,7 @@ from __future__ import unicode_literals, print_function
 
 import pyloco
 
-class FrelptOutput(pyloco.PylocoTask):
+class FrelptOutput(pyloco.Task):
 
     def __init__(self, parent):
         pass

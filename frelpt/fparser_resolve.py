@@ -18,24 +18,54 @@ from .util import is_name_equal
 
 fortran_exts = [".f", ".f90", ".f95", ".f03", ".F", ".F90", ".F95", ".F03"]
 
-class Resolver(object):
+class Resolver(pyloco.Task):
 
-    def __init__(self, trees, macros, includes, analyzers):
+    def __init__(self, parent):
 
-        self.trees = trees
-        self.macros = macros
-        self.includes = includes
-        self.analyzers = analyzers
+        self.add_data_argument("node", help="node to search")
+        self.add_data_argument("trees", help="ast tree of source files")
+        self.add_data_argument("resolvers", help="a list of candidate resolvers")
+        self.add_data_argument("macros", help="macro definitions")
+        self.add_data_argument("includes", help="include paths")
+        self.add_data_argument("analyzers", help="in-search analyzers")
+        self.add_data_argument("searcher", help="identifier searcher")
+
+        self.register_forward("trees", help="ast trees")
+
+    def perform(self, targs):
+
+        self.trees = targs.trees
+        self.macros = targs.macros
+        self.includes = targs.includes
+        self.analyzers = targs.analyzers
+        self.resolvers = targs.resolvers
+        self.searcher = targs.searcher
 
         self.modules = {}
-        for tree in trees.values():
+        for tree in self.trees.values():
             if isinstance(tree.wrapped, Module):
                 import pdb; pdb.set_trace()
-            
+
         self.respaths = {}
         self.invrespaths = {}
 
-        self.searcher = Searcher()
+        self._add_modules(targs.node)
+
+        respath = []
+
+        self.respaths[targs.node] = respath
+
+        self.log_debug("Resolving '%s'"%str(targs.node.wrapped))
+
+        if self._resolve(targs.node, targs.resolvers, respath, True):
+            self.invrespaths[respath[-1]] = respath
+            self._analyze(respath)
+            self.log_debug(str(respath))
+        else:
+            # try implicit 
+            import pdb; pdb.set_trace()
+
+        self.add_forward(trees=targs.trees)
 
     def _parse(self, usenode, modname):
 
@@ -55,14 +85,13 @@ class Resolver(object):
                         _include = self.includes.get(filepath, [])                                    
                 
                         forward = {
-                            "target" : filepath,
                             "macro" : dict(_macro),
                             "include" : list(_include),
                         }
 
-                        argv = ["Parser"]
-                        parser = Parser(pyloco.Manager())
-                        retval, _forward = parser.run(argv, forward, {})
+                        argv = [filepath]
+                        parser = Parser(self.get_proxy())
+                        retval, _forward = parser.run(argv, forward=forward)
                             
                         tree = _forward["tree"]
                         self.trees[filepath] = tree
@@ -79,22 +108,6 @@ class Resolver(object):
                                 if is_name_equal(modname, mod_stmt_name):
                                     return tree
 
-
-
-    def run(self, node, res):
-
-        self._add_modules(node)
-
-        respath = []
-
-        self.respaths[node] = respath
-
-        if self._resolve(node, res, respath, True):
-            self.invrespaths[respath[-1]] = respath
-            self._analyze(respath)
-        else:
-            # try implicit 
-            import pdb; pdb.set_trace()
 
     def _add_modules(self, node):
 
@@ -124,8 +137,9 @@ class Resolver(object):
 
     def _search_resolve(self, *nodes):
         for n1 in nodes:
-            ids = self.searcher.run(n1)
-            for n2, res in ids.items():
+            forward = { "node": n1 }
+            _, _fwd = self.searcher.run([], forward=forward)
+            for n2, res in _fwd["ids"].items():
                 self.run(n2, res)
 
     def _subnode_resolve(self, node, res, path):

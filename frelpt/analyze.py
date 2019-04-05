@@ -8,7 +8,7 @@ import pyloco
 from .fparser_search import Searcher
 from .fparser_resolve import Resolver
 
-class FrelptAnalyzer(pyloco.PylocoTask):
+class FrelptAnalyzer(pyloco.Task):
 
     def __init__(self, parent):
 
@@ -23,35 +23,38 @@ class FrelptAnalyzer(pyloco.PylocoTask):
     def perform(self, targs):
 
         trees = {}
-        if isinstance(targs.trees, pyloco.Option):
-            import pdb; pdb.set_trace()
-        elif isinstance(targs.trees, dict):
+        if isinstance(targs.trees, dict):
             trees.update(targs.trees)
         else:
             import pdb; pdb.set_trace()
 
         macros = {}
         if targs.macros:
-            if isinstance(targs.macros, pyloco.Option):
-                import pdb ;pdb.set_trace()
-            elif isinstance(targs.macros, dict):
+            if isinstance(targs.macros, dict):
                 macros.update(targs.macros)
             else:
                 import pdb ;pdb.set_trace()
 
         includes = {}
         if targs.includes:
-            if isinstance(targs.includes, pyloco.Option):
-                import pdb ;pdb.set_trace()
-            elif isinstance(targs.includes, dict):
+            if isinstance(targs.includes, dict):
                 includes.update(targs.includes)
             else:
                 import pdb ;pdb.set_trace()
 
-        insearch_analyzers = []
-        resolver = Resolver(trees, macros, includes, insearch_analyzers)
 
-        searcher = Searcher()
+        parent = self.get_proxy()
+
+        searcher = Searcher(parent)
+
+        #resolver = Resolver(trees, macros, includes, insearch_analyzers)
+        #argv = [targs.target]
+        #direct = FrelptDirective(parent)
+        #retval, _forward = direct.run(argv, forward=forward)
+
+        resolver = Resolver(parent)
+
+        insearch_analyzers = []
 
         for node in targs.node:
 
@@ -60,9 +63,23 @@ class FrelptAnalyzer(pyloco.PylocoTask):
             if filepath not in trees:
                 trees[filepath] = topnode
 
-            ids = searcher.run(node)
-            for node, res in ids.items():
-                resolver.run(node, res)
+            searcher_forward = {"node" : node}
+            _, _sfwd = searcher.run(["--log", "searcher"], forward=searcher_forward)
+            
+            for node, res in _sfwd["ids"].items():
+
+                resolver_forward = {
+                    "node" : node,
+                    "resolvers" : res,
+                    "trees" : trees,
+                    "macros" : dict(macros),
+                    "includes" : dict(includes),
+                    "analyzers" : list(insearch_analyzers),
+                    "searcher" : searcher
+                }
+
+                _, _rfwd = resolver.run(["--log", "resolver"], forward=resolver_forward)
+                trees = _rfwd["trees"]
 
         outsearch_analyzers = []
 

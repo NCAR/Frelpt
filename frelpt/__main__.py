@@ -8,7 +8,7 @@ from .error import FreError
 from .app import AppBuildAnalyzer
 from .control import FrelptController
 
-class FrelptTask(pyloco.PylocoTask):
+class FrelptTask(pyloco.Task):
 
     def __init__(self, parent):
 
@@ -28,27 +28,17 @@ class FrelptTask(pyloco.PylocoTask):
             if not os.path.isfile(targs.target):
                 raise FreError("Failed target argument of '%s'"%str(targs.target))
 
-            parent = pyloco.Manager()
+            parent = self.get_proxy()
 
             # run application build analyzer
             app_analyzer = AppBuildAnalyzer(parent)
-            argv = ["AppBuildAnalyzer" , "--outdir", targs.outdir.vargs[0]]
-            forward = {
-                "clean" : targs.clean,
-                "build" : targs.build,
-                #"outdir" : targs.outdir.vargs[0]
-            }
-            retval, _forward = app_analyzer.run(argv, forward, {})
+            argv = [targs.build, targs.clean, "--outdir", targs.outdir]
+            retval, _forward = app_analyzer.run(argv)
 
             # run frelpt controller
             ctrl = FrelptController(parent)
-            argv = ["FrelptController" , "--outdir", targs.outdir.vargs[0]]
-            forward = {
-                "target": targs.target
-                #"outdir": targs.outdir.vargs[0]
-            }
-            forward.update(_forward)
-            retval, _ = ctrl.run(argv, forward, {})
+            argv = [targs.target , "--outdir", targs.outdir]
+            retval, _ = ctrl.run(argv, forward=_forward)
 
         except FreError as err:
             raise
@@ -63,7 +53,7 @@ def main(argv=None):
     if argv is None:
         argv = sys.argv
 
-    return pyloco.run_by_class(FrelptTask, argv=argv)
+    return pyloco.perform(FrelptTask, argv=argv)
 
 if __name__ == "__main__":
     main()

@@ -4,7 +4,7 @@ import os
 
 import pyloco
 
-class AppBuildAnalyzer(pyloco.PylocoTask):
+class AppBuildAnalyzer(pyloco.Task):
 
     def __init__(self, parent):
 

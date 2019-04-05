@@ -8,7 +8,7 @@ import pyloco
 from .fparser_parse import Parser
 from .node import walk_ast
 
-class FrelptDirective(pyloco.PylocoTask):
+class FrelptDirective(pyloco.Task):
 
     def __init__(self, parent):
 
@@ -26,18 +26,14 @@ class FrelptDirective(pyloco.PylocoTask):
 
         macro = {}
         if targs.macro:
-            if isinstance(targs.macro, pyloco.Option):
-                import pdb ;pdb.set_trace()
-            elif isinstance(targs.macro, dict):
+            if isinstance(targs.macro, dict):
                 macro.update(targs.macro)
             else:
                 import pdb ;pdb.set_trace()
 
         include = []
         if targs.include:
-            if isinstance(targs.include, pyloco.Option):
-                import pdb ;pdb.set_trace()
-            elif isinstance(targs.include, (list, tuple)):
+            if isinstance(targs.include, (list, tuple)):
                 include.extend(targs.include)
             else:
                 import pdb ;pdb.set_trace()
@@ -48,9 +44,9 @@ class FrelptDirective(pyloco.PylocoTask):
             "include" : include,
         }
 
-        argv = ["Parser"]
-        parser = Parser(pyloco.Parent(self, 0))
-        retval, _forward = parser.run(argv, forward, {})
+        argv = []
+        parser = Parser(self.get_proxy())
+        retval, _forward = parser.run(argv, forward=forward)
 
         target_tree = _forward["tree"]
 

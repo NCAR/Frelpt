@@ -32,7 +32,7 @@ fparser_do_stmts = (
     fparser.two.Fortran2003.Do_Stmt
 )
 
-class Parser(pyloco.PylocoTask):
+class Parser(pyloco.Task):
 
     def __init__(self, parent):
 
@@ -69,9 +69,7 @@ class Parser(pyloco.PylocoTask):
         aliases = {}
         if targs.alias:
             for alias in targs.alias:
-                if isinstance(alias, pyloco.Option):
-                    import pdb ;pdb.set_trace()
-                elif isinstance(alias, dict):
+                if isinstance(alias, dict):
                     import pdb ;pdb.set_trace()
                 else:
                     import pdb ;pdb.set_trace()
@@ -79,22 +77,15 @@ class Parser(pyloco.PylocoTask):
         macros = {}
         if targs.macro:
             for macro in targs.macro:
-                if isinstance(macro, pyloco.Option):
-                    import pdb ;pdb.set_trace()
-                elif isinstance(macro, dict):
+                if isinstance(macro, dict):
                     import pdb ;pdb.set_trace()
                 else:
                     import pdb ;pdb.set_trace()
 
         includes = []
         if targs.include:
-            for include in targs.include:
-                if isinstance(include, pyloco.Option):
-                    includes.extend(include.vargs)
-                elif isinstance(include, dict):
-                    import pdb ;pdb.set_trace()
-                else:
-                    import pdb ;pdb.set_trace()
+            includes.extend(targs.include)
+
 ###
 #        aliases = {}
 #        if targs.alias:

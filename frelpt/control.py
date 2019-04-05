@@ -10,7 +10,7 @@ from .translate import FrelptTranslator
 from .output import FrelptOutput
 
 
-class FrelptController(pyloco.PylocoTask):
+class FrelptController(pyloco.Task):
 
     def __init__(self, parent):
 
@@ -29,18 +29,14 @@ class FrelptController(pyloco.PylocoTask):
 
         macros = {}
         if targs.macros:
-            if isinstance(targs.macros, pyloco.Option):
-                import pdb ;pdb.set_trace()
-            elif isinstance(targs.macros, dict):
+            if isinstance(targs.macros, dict):
                 macros.update(targs.macros)
             else:
                 import pdb ;pdb.set_trace()
 
         includes = {}
         if targs.includes:
-            if isinstance(targs.includes, pyloco.Option):
-                import pdb ;pdb.set_trace()
-            elif isinstance(targs.includes, dict):
+            if isinstance(targs.includes, dict):
                 includes.update(targs.includes)
             else:
                 import pdb ;pdb.set_trace()
@@ -50,14 +46,15 @@ class FrelptController(pyloco.PylocoTask):
         #######################################
 
         forward = {
-            "target" : targs.target,
-            "macro" : list(macros.get(targs.target, [])),
+            "macro" : dict(macros.get(targs.target, [])),
             "include" : list(includes.get(targs.target, []))
         }
 
-        argv = ["FrelptDirective"]
-        direct = FrelptDirective(pyloco.Parent(self, 0))
-        retval, _forward = direct.run(argv, forward, {})
+        parent = self.get_proxy()
+
+        argv = [targs.target]
+        direct = FrelptDirective(parent)
+        retval, _forward = direct.run(argv, forward=forward)
 
         target_tree = _forward["tree"]
         target_donode = _forward["donode"]
@@ -75,9 +72,9 @@ class FrelptController(pyloco.PylocoTask):
             "trees" : trees 
         }
 
-        argv = ["FrelptAnalyze"]
-        analyzer = FrelptAnalyzer(pyloco.Parent(self, 0))
-        retval, _forward = analyzer.run(argv, forward, {})
+        argv = []
+        analyzer = FrelptAnalyzer(parent)
+        retval, _forward = analyzer.run(argv, forward=forward)
 
         trees = _forward.get("trees", trees)
 
@@ -86,14 +83,14 @@ class FrelptController(pyloco.PylocoTask):
         #######################################
         # translate application
         #######################################
-        argv = ["FrelptTranslator"]
-        trans = FrelptTranslator(pyloco.Parent(self, 0))
-        retval, _forward = trans.run(argv, forward, {})
+        argv = []
+        trans = FrelptTranslator(parent)
+        retval, _forward = trans.run(argv, forward=forward)
 
         #######################################
         # generate translated outputs
         #######################################
-        argv = ["FrelpOutput"]
-        output = FrelptOutput(pyloco.Parent(self, 0))
-        retval, _forward = output.run(argv, forward, {})
+        argv = []
+        output = FrelptOutput(parent)
+        retval, _forward = output.run(argv, forward=forward)
 
