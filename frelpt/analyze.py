@@ -5,8 +5,8 @@ from __future__ import unicode_literals, print_function
 
 import pyloco
 
-from .fparser_search import Searcher
-from .fparser_resolve import Resolver
+from frelpt.fparser_search import Searcher
+from frelpt.fparser_resolve import Resolver
 
 class FrelptAnalyzer(pyloco.Task):
 
@@ -19,6 +19,9 @@ class FrelptAnalyzer(pyloco.Task):
         self.add_option_argument("-t", "--trees", help="a container of ASTs")
 
         self.register_forward("trees", help="ASTs used during resolution")
+        self.register_forward("modules", help="module ASTs")
+        self.register_forward("respaths", help="resolution paths")
+        self.register_forward("invrespaths", help="inverted resolution paths")
 
     def perform(self, targs):
 
@@ -71,15 +74,19 @@ class FrelptAnalyzer(pyloco.Task):
                 resolver_forward = {
                     "node" : node,
                     "resolvers" : res,
-                    "trees" : trees,
                     "macros" : dict(macros),
                     "includes" : dict(includes),
                     "analyzers" : list(insearch_analyzers),
-                    "searcher" : searcher
+                    "searcher" : searcher,
+                    "trees" : trees,
                 }
 
                 _, _rfwd = resolver.run(["--log", "resolver"], forward=resolver_forward)
                 trees = _rfwd["trees"]
+
+        modules = _rfwd["modules"]
+        respaths = _rfwd["respaths"]
+        invrespaths = _rfwd["invrespaths"]
 
         outsearch_analyzers = []
 
@@ -87,4 +94,7 @@ class FrelptAnalyzer(pyloco.Task):
             for outsearch_analyzer in outsearch_analyzers:
                 outsearch_analyzer(path, tree)
 
-        self.add_forward(trees=resolver.trees)
+        self.add_forward(trees=trees)
+        self.add_forward(modules=modules)
+        self.add_forward(respaths=respaths)
+        self.add_forward(invrespaths=invrespaths)

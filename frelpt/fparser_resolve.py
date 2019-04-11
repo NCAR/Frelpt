@@ -12,42 +12,112 @@ from fparser.two.Fortran2003 import *
 from fparser.two.utils import *
 
 
-from .fparser_parse import Parser
-from .fparser_search import Searcher
-from .util import is_name_equal
+from frelpt.fparser_parse import Parser
+from frelpt.fparser_search import Searcher
+from frelpt.util import is_name_equal
 
 fortran_exts = [".f", ".f90", ".f95", ".f03", ".F", ".F90", ".F95", ".F03"]
 
+# TODO: resoving order within subnodes
+#     - exec part -> spec part
+#     - .. -> typedecl -> use
+# TODO: spec stmt does not resolve, but add node in resolution related bag
+
 class Resolver(pyloco.Task):
+
+    def _sort_keygen(self, **kwargs):
+        def sortkey(self, node):
+            return kwargs.get(node, 0)
+        return sortkey
 
     def __init__(self, parent):
 
         self.add_data_argument("node", help="node to search")
-        self.add_data_argument("trees", help="ast tree of source files")
         self.add_data_argument("resolvers", help="a list of candidate resolvers")
         self.add_data_argument("macros", help="macro definitions")
         self.add_data_argument("includes", help="include paths")
         self.add_data_argument("analyzers", help="in-search analyzers")
         self.add_data_argument("searcher", help="identifier searcher")
 
-        self.register_forward("trees", help="ast trees")
+        self.add_option_argument("--trees", recursive=True, help="ast tree of source files")
+        self.add_option_argument("--modules", recursive=True, help="identifier searcher")
+        self.add_option_argument("--respaths", recursive=True, help="identifier searcher")
+        self.add_option_argument("--invrespaths", recursive=True, help="identifier searcher")
 
+        self.register_forward("trees", help="AST trees")
+        self.register_forward("modules", help="module ASTs")
+        self.register_forward("respaths", help="resolution paths")
+        self.register_forward("invrespaths", help="inverted resolution paths")
+
+        # sort priorities: decending order
+        self._sorts = {
+            Program_Unit: self._sort_keygen(Comment=0, Main_Program=1, Module=2, External_Subprogram=3, Block_Data=4),
+            Main_Program: self._sort_keygen(End_Program_Stmt=0, Specification_Part=1, Execution_Part=2, Internal_Subprogram_Part=3, Program_Stmt=4),
+            Main_Program0: self._sort_keygen(End_Program0_Stmt=0, Specification_Part=1, Execution_Part=2, Internal_Subprogram_Part=3, Program_Stmt=4),
+            Module: self._sort_keygen(End_Module_Stmt=0, Specification_Part=1, Module_Subprogram_Part=2, Module_Stmt=3),
+            Block_Data: self._sort_keygen(End_Block_Data_Stmt=0, Specification_Part=1, Block_Data_Stmt=2),
+            Specification_Part: self._sort_keygen(Implicit_Part=0, Use_Stmt=1, Import_Stmt=2, Declaration_Construct=3),
+        }
+
+        # TODO: add more sorted nodes
+
+#
+#Execution_Part_Construct : Comment', 'Executable_Construct', 'Format_Stmt',
+#                      'Entry_Stmt', 'Data_Stmt']
+#
+#Executable_Construct_C201'
+#'Action_Stmt_C201', 'Associate_Stmt', 'Case_Construct', 'Comment',
+#        'Do_Construct', 'Forall_Construct', 'If_Construct',
+#        'Select_Type_Construct', 'Where_Construct'
+#
+#'Execution_Part_Construct_C201 : 'Comment', 'Executable_Construct_C201', 'Format_Stmt',
+#                      'Entry_Stmt', 'Data_Stmt']
+#
+#Executable_Construct: 'Action_Stmt', 'Associate_Stmt', 'Case_Construct', 'Comment',
+#        'Do_Construct', 'Forall_Construct', 'If_Construct',
+#        'Select_Type_Construct', 'Where_Construct'
+#
+#Action_Stmt : 
+#'Allocate_Stmt', 'Assignment_Stmt', 'Backspace_Stmt',
+#                      'Call_Stmt', 'Close_Stmt', 'Comment', 'Continue_Stmt',
+#                      'Cycle_Stmt', 'Deallocate_Stmt', 'Endfile_Stmt',
+#                      'End_Function_Stmt', 'End_Subroutine_Stmt', 'Exit_Stmt',
+#                      'Flush_Stmt', 'Forall_Stmt', 'Goto_Stmt', 'If_Stmt',
+#                      'Inquire_Stmt', 'Nullify_Stmt', 'Open_Stmt',
+#                      'Pointer_Assignment_Stmt', 'Print_Stmt', 'Read_Stmt',
+#                      'Return_Stmt', 'Rewind_Stmt', 'Stop_Stmt', 'Wait_Stmt',
+#                      'Where_Stmt', 'Write_Stmt', 'Arithmetic_If_Stmt',
+#                      'Computed_Goto_Stmt'
+#
+#
+#Action_Stmt_C201:
+#'Allocate_Stmt', 'Assignment_Stmt', 'Backspace_Stmt',
+#                      'Call_Stmt', 'Close_Stmt', 'Comment', 'Continue_Stmt',
+#                      'Cycle_Stmt', 'Deallocate_Stmt', 'Endfile_Stmt',
+#                      'Exit_Stmt',
+#                      'Flush_Stmt', 'Forall_Stmt', 'Goto_Stmt', 'If_Stmt',
+#                      'Inquire_Stmt', 'Nullify_Stmt', 'Open_Stmt',
+#                      'Pointer_Assignment_Stmt', 'Print_Stmt', 'Read_Stmt',
+#                      'Return_Stmt', 'Rewind_Stmt', 'Stop_Stmt', 'Wait_Stmt',
+#                      'Where_Stmt', 'Write_Stmt', 'Arithmetic_If_Stmt',
+#                      'Computed_Goto_Stmt'
+#
+
+    subclass_names = []
+    use_names = ['Block_Data_Stmt', 'Specification_Part',
+                 'End_Block_Data_Stmt']
     def perform(self, targs):
 
-        self.trees = targs.trees
         self.macros = targs.macros
         self.includes = targs.includes
         self.analyzers = targs.analyzers
         self.resolvers = targs.resolvers
         self.searcher = targs.searcher
 
-        self.modules = {}
-        for tree in self.trees.values():
-            if isinstance(tree.wrapped, Module):
-                import pdb; pdb.set_trace()
-
-        self.respaths = {}
-        self.invrespaths = {}
+        self.trees = targs.trees if targs.trees else {}
+        self.modules = targs.modules if targs.modules else {}
+        self.respaths = targs.respaths if targs.respaths else {}
+        self.invrespaths = targs.invrespaths if targs.invrespaths else {}
 
         self._add_modules(targs.node)
 
@@ -65,7 +135,10 @@ class Resolver(pyloco.Task):
             # try implicit 
             import pdb; pdb.set_trace()
 
-        self.add_forward(trees=targs.trees)
+        self.add_forward(trees=self.trees)
+        self.add_forward(modules=self.modules)
+        self.add_forward(respaths=self.respaths)
+        self.add_forward(invrespaths=self.invrespaths)
 
     def _parse(self, usenode, modname):
 
@@ -108,6 +181,11 @@ class Resolver(pyloco.Task):
                                 if is_name_equal(modname, mod_stmt_name):
                                     return tree
 
+    def _sorted_subnodes(self, node):
+        if node in self._sorts:
+            return sorted(node.subnodes, key=self._sorts[node], reverse=True)
+        else:
+            return node.subnodes
 
     def _add_modules(self, node):
 
@@ -144,7 +222,7 @@ class Resolver(pyloco.Task):
 
     def _subnode_resolve(self, node, res, path):
 
-        for subnode in node.subnodes:
+        for subnode in self._sorted_subnodes(node):
             if subnode not in path:
                 newpath = list(path)
                 if self._resolve(subnode, res, newpath, False):

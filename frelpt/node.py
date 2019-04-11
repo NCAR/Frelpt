@@ -29,6 +29,55 @@ class ConcreteSyntaxNode(object):
             top = top.parent
         return top
 
+    def __str__(self):
+        return str(self.wrapped)
+
+    def __repr__(self):
+        return repr(self.wrapped)
+
+    def showcode(self):
+        lines = []
+        lines.append(str(self))
+        lines.extend([str(n) for n in self.subnodes])
+
+        return "\n".join(lines)
+
+    def showtree(self, depth=0):
+        lines = []
+        lines.append("    "*depth + repr(self))
+        lines.extend([n.showtree(depth=depth+1) for n in self.subnodes
+                      if hasattr(n, "showtree")])
+
+        return "\n".join(lines)
+
+    def traverse(self, bag, node=None, func=None, prerun=True, depth=0):
+
+        if node is None and depth==0:
+            node = self
+
+        if prerun and callable(func):
+            if func(node, bag, depth): return
+
+        if not callable(func):
+            if isinstance(bag, dict):
+                if "__nodes__" in bag:
+                    bagnodes = []
+                    bag["__nodes__"] = bagnodes
+                else:
+                    bagnodes = bag["__nodes__"]
+                bagnodes.append(node)
+            elif isinstance(bag, list):
+                bag.append(node)
+            elif isinstance(bag, set):
+                bag.add(node)
+
+        if node and hasattr(node, "subnodes") and node.subnodes is not None:
+            for child in node.subnodes:
+                self.traverse(bag, node=child, func=func, prerun=prerun, depth=depth+1)
+
+        if not prerun and callable(func):
+            if func(node, bag, depth): return
+
 class BlockNode(ConcreteSyntaxNode):
 
     def resolve(self):

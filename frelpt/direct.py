@@ -23,7 +23,6 @@ class FrelptDirective(pyloco.Task):
 
     def perform(self, targs):
 
-
         macro = {}
         if targs.macro:
             if isinstance(targs.macro, dict):

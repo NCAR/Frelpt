@@ -76,16 +76,23 @@ class FrelptController(pyloco.Task):
         analyzer = FrelptAnalyzer(parent)
         retval, _forward = analyzer.run(argv, forward=forward)
 
-        trees = _forward.get("trees", trees)
-
-        import pdb; pdb.set_trace()
-
         #######################################
         # translate application
         #######################################
+        forward = {
+            "donode" : target_donode,
+            "dosubnodes" : target_subnodes[1:],
+            "trees" : _forward["trees"] ,
+            "modules" : _forward["modules"], 
+            "respaths" : _forward["respaths"], 
+            "invrespaths" : _forward["invrespaths"] 
+        }
+
         argv = []
         trans = FrelptTranslator(parent)
         retval, _forward = trans.run(argv, forward=forward)
+
+        import pdb; pdb.set_trace()
 
         #######################################
         # generate translated outputs

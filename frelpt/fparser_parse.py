@@ -11,8 +11,8 @@ import fparser.two.parser
 import fparser.two.Fortran2003
 import fparser.two.utils
 
-from .util import run_shcmd
-from .node import nodeclass_template, ConcreteSyntaxNode, BlockNode, Tuple
+from frelpt.util import run_shcmd
+from frelpt.node import nodeclass_template, ConcreteSyntaxNode, BlockNode, Tuple
 
 fparser_do_constructs = (
     fparser.two.Fortran2003.Block_Nonlabel_Do_Construct,

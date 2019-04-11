@@ -7,7 +7,7 @@ import pyloco
 from fparser.two.Fortran2003 import *
 from fparser.two.utils import *
 
-from .error import FparserSearchException
+from frelpt.error import FparserSearchException
 
 
 class Res(object):

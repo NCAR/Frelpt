@@ -1,9 +1,12 @@
 
 import os
+import sys 
 import unittest
 import tempfile
 import shutil
+import runpy
 
+import pyloco
 import frelpt
 
 _here = os.path.dirname(__file__)
@@ -22,12 +25,13 @@ class BasicTests(unittest.TestCase):
 
     def test_basic(self):
 
-        retval = frelpt.run(argv=[
+        retval, forward = pyloco.perform(frelpt.FrelptTask, argv=[
             _target,
             _clean_cmd,
             _build_cmd,
             "--outdir", str(self.tempdir),
             "--log", "basictests",
+            "--debug"
         ])
  
             #"--debug",
