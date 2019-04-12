@@ -34,6 +34,14 @@ class ConcreteSyntaxNode(object):
 
     def __repr__(self):
         return repr(self.wrapped)
+#
+#    def __eq__(self, other):
+#        if not hasattr(other, "wrapped"):
+#            return False
+#        return self.wrapped == other.wrapped
+#
+#    def __hash__(self):
+#        return id(self)
 
     def showcode(self):
         lines = []
@@ -94,19 +102,6 @@ nodeclass_template = '''\
 class {clsname}({parentcls}):
     pass
 '''
-
-#    def collect_identifiers(self, ids):
-#        self.resolver.search_{clsname}(self, ids)
-#
-#    def locate_declaration(self, name, node):
-#        self.resolver.declare_{clsname}(self, name, node)
-#
-#    def locate_definition(self, name, node):
-#        self.resolver.define_{clsname}(self, name, node)
-#
-#    def find_intent(self, name, node):
-#        self.resolver.intent_{clsname}(self, name, node)
-#
 
 # node_classes : any
 # node_types : all

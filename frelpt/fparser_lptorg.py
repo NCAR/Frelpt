@@ -7,7 +7,8 @@ import pyloco
 
 from fparser.two.Fortran2003 import *
 from fparser.two.utils import *
-
+from frelpt.fparser_util import (collect_names, get_parent_by_class, get_entity_decl_by_name,
+                get_attr_spec)
 
 def collect_do_loopcontrol(node, bag, depth):
 
@@ -18,10 +19,11 @@ def collect_do_loopcontrol(node, bag, depth):
         if scalar_logical_expr is not None:
             raise Exception("'WHILE' loop is not supported for loop pushdown translation.")
 
-        bag["dovar"] = counter_expr[0]
-        bag["start"], bag["stop"] = counter_expr[1][:2]
+        bag["dovar"] = counter_expr[0].pair
+        bag["start"] = counter_expr[1][0].pair
+        bag["stop"]  = counter_expr[1][1].pair
         if len(counter_expr[1]) > 2:
-            bag["step"] = counter_expr[1][2] if len(counter_expr[1]) > 2 else None
+            bag["step"] = counter_expr[1][2].pair if len(counter_expr[1]) > 2 else None
 
         return True
 
@@ -32,9 +34,49 @@ class LPTOrgTranslator(pyloco.Task):
         self.add_data_argument("donode", required=True, help="org do node for loop pushdown translation")
         self.add_data_argument("subnodes", required=True, help="org do subnodes for loop pushdown translation")
         self.add_data_argument("loopcontrol", required=True, help="org do loop control node for loop pushdown translation")
+        self.add_data_argument("trees", required=True, help="all abstract syntax trees")
+        self.add_data_argument("modules", required=True, help="all modules")
+        self.add_data_argument("respaths", required=True, help="a list of resolution path")
+        self.add_data_argument("invrespaths", required=True, help="a inverse list of resolution path")
 
         #evaluate=True, parameter_parse=True
         self.add_option_argument("-o", "--outdir", default=os.getcwd(), help="output directory")
+
+    def collect_array_vars(self, node):
+
+        arrvars = []
+
+        for name in collect_names(node):
+            for res0 in self.respaths.keys():
+                if name is res0: # NOTE: it "should" be "is" as newly created node can not be res0
+                    resname = self.respaths[res0][-1]
+                    resstmt = get_parent_by_class(resname, Type_Declaration_Stmt)
+                    if resstmt:
+                        type_spec, attr_specs, entity_decls = resstmt.subnodes
+                        is_array = False
+
+                        if attr_specs:
+                            dim_spec = get_attr_spec(attr_specs, Dimension_Attr_Spec)
+                            if dim_spec:
+                                is_array = True
+
+                        if entity_decls:
+                            entity_decl = get_entity_decl_by_name(entity_decls, resname)
+                            
+                            if entity_decl:
+                                objname, array_spec, char_length, init = entity_decl.subnodes
+                                if array_spec:
+                                    is_array = True
+
+                                if is_array:
+                                    if isinstance(name.parent.wrapped, Part_Ref):
+                                        for sname in collect_names(name.parent.subnodes[1]):
+                                            if sname.wrapped == self.loopctr["dovar"].wrapped:
+                                                if name not in arrvars:
+                                                    arrvars.append(name)
+                                    else:
+                                        import pdb; pdb.set_trace()
+        return arrvars
 
     def perform(self, targs):
 
@@ -61,6 +103,12 @@ class LPTOrgTranslator(pyloco.Task):
         #       , instead just mark that the variable is promoted. But until fully understood,
         #       keep the typedecl stmt as it allows to detect confliction from other typedecl stmt.
 
+        self.loopctr = targs.loopcontrol
+        self.trees = targs.trees
+        self.modules = targs.modules
+        self.respaths = targs.respaths
+        self.invrespaths = targs.invrespaths
+
         # collect arrvars to be promoted
         arrvars = []
         for subnode in targs.subnodes:
@@ -83,8 +131,10 @@ class LPTOrgTranslator(pyloco.Task):
                 if pvar not in target_vars:
                     target_vars.append(var)
 
+        globalvars = []
+
         # promote vars 
-        global_vars = self.promote_vars(target_vars)
+        global_vars = self.promote_vars(target_vars, arrvars, funccalls, globalvars)
 
         # promote arrvars
         for arrvar in arrvars:
@@ -93,6 +143,10 @@ class LPTOrgTranslator(pyloco.Task):
         for funccall in funccalls:
             gvars = self.promote_func_call(funcall)
             global_vars.extend(gvars)
+
+        # promote typedecl stmts
+        for tdecl in typedecls:
+            self.promote_typedecl(tdecl)
 
         # reposition this subnode to just above of do node
         pnode = targs.donode.parent
@@ -103,37 +157,31 @@ class LPTOrgTranslator(pyloco.Task):
             pnode.subnodes.insert(idxdo, subnode) 
         
         # process global variable promotions
-        for gvar in global_vars:
+        for gvar in globalvars:
             self.promote_global_var(gvar)
 
         import pdb; pdb.set_trace()
 
-    def promote_vars(self):
+    def promote_vars(self, pvars):
+
+        # actual promotion happens here
+        import pdb; pdb.set_trace() 
+
+
 
         # collect typedecls to be promoted
         ptypedecls = []
-        for arrvar in arrvars:
-            pvars = self.collect_promote_vars(arrvar)
-            for pvar in pvars:
-                ptypedecl = self.get_promote_typedecl(pvar)
-                if ptypedecl not in ptypedecls:
-                    ptypedecls.append(ptypedecl)
+        for pvar in pvars:
+            ptypedecl = self.get_promote_typedecl(pvar)
+            if ptypedecl not in ptypedecls:
+                ptypedecls.append(ptypedecl)
 
         for ptypedecl in ptypedecls:
 
             # collect vars whose typedecl is ptypedecl
-            pvars = self.collect_promote_vars()
-
-            for pvar in pvars: 
-
-                # promote pvars
-
-                # collect cascading pvars that needs promotion due to pvar
-
-                # collect typedecs for the new pvars and repeat....
-
+            pvars = self.collect_promote_vars(ptypedecl)
+            self.promote_vars(pvars)
 
 
         # if pvar is global variables, just keep it for later processing after finishing all local promotions
         # need to collect function calls
-

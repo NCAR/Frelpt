@@ -48,10 +48,14 @@ class FrelptTranslator(pyloco.Task):
 
         parent = self.get_proxy()
 
-
         forward = {
+            "donode": targs.donode,
             "subnodes": targs.dosubnodes,
-            "loopcontrol": self.org_do_loopcontrol
+            "loopcontrol": self.org_do_loopcontrol,
+            "trees": targs.trees,
+            "modules": targs.modules,
+            "respaths": targs.respaths,
+            "invrespaths": targs.invrespaths
         }
 
         argv = []
