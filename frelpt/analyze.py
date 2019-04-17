@@ -59,6 +59,13 @@ class FrelptAnalyzer(pyloco.Task):
 
         insearch_analyzers = []
 
+        analyzer_info = {
+            "trees": trees,
+            "modules": {},
+            "respaths": {},
+            "invrespaths": {}
+        }
+
         for node in targs.node:
 
             topnode = node.topnode()
@@ -78,15 +85,14 @@ class FrelptAnalyzer(pyloco.Task):
                     "includes" : dict(includes),
                     "analyzers" : list(insearch_analyzers),
                     "searcher" : searcher,
-                    "trees" : trees,
+                    "trees" : analyzer_info["trees"],
                 }
 
-                _, _rfwd = resolver.run(["--log", "resolver"], forward=resolver_forward)
-                trees = _rfwd["trees"]
-
-        modules = _rfwd["modules"]
-        respaths = _rfwd["respaths"]
-        invrespaths = _rfwd["invrespaths"]
+                _, rfwd = resolver.run(["--log", "resolver"], forward=resolver_forward)
+                analyzer_info["trees"].update(rfwd["trees"])
+                analyzer_info["modules"].update(rfwd["modules"])
+                analyzer_info["respaths"].update(rfwd["respaths"])
+                analyzer_info["invrespaths"].update(rfwd["invrespaths"])
 
         outsearch_analyzers = []
 
@@ -94,7 +100,7 @@ class FrelptAnalyzer(pyloco.Task):
             for outsearch_analyzer in outsearch_analyzers:
                 outsearch_analyzer(path, tree)
 
-        self.add_forward(trees=trees)
-        self.add_forward(modules=modules)
-        self.add_forward(respaths=respaths)
-        self.add_forward(invrespaths=invrespaths)
+        self.add_forward(trees=analyzer_info["trees"])
+        self.add_forward(modules=analyzer_info["modules"])
+        self.add_forward(respaths=analyzer_info["respaths"])
+        self.add_forward(invrespaths=analyzer_info["invrespaths"])

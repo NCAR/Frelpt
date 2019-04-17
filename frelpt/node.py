@@ -25,8 +25,14 @@ class ConcreteSyntaxNode(object):
 
     def topnode(self):
         top = self
+        i = 0
         while hasattr(top,"parent") and top.parent:
             top = top.parent
+
+            i += 1
+            if i > 1000:
+                raise Exception("cyclic path of 'parent' attribute")
+
         return top
 
     def __str__(self):
@@ -34,7 +40,8 @@ class ConcreteSyntaxNode(object):
 
     def __repr__(self):
         return repr(self.wrapped)
-#
+
+# NOTE: not work with dictionary hashing
 #    def __eq__(self, other):
 #        if not hasattr(other, "wrapped"):
 #            return False

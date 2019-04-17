@@ -8,7 +8,8 @@ import pyloco
 from fparser.two.Fortran2003 import *
 from fparser.two.utils import *
 from frelpt.fparser_util import (collect_names, get_parent_by_class, get_entity_decl_by_name,
-                get_attr_spec)
+                get_attr_spec, collect_nodes_by_class, is_function_name, is_subroutine_name,
+                is_interface_name)
 
 def collect_do_loopcontrol(node, bag, depth):
 
@@ -47,36 +48,76 @@ class LPTOrgTranslator(pyloco.Task):
         arrvars = []
 
         for name in collect_names(node):
-            for res0 in self.respaths.keys():
-                if name is res0: # NOTE: it "should" be "is" as newly created node can not be res0
-                    resname = self.respaths[res0][-1]
-                    resstmt = get_parent_by_class(resname, Type_Declaration_Stmt)
-                    if resstmt:
-                        type_spec, attr_specs, entity_decls = resstmt.subnodes
-                        is_array = False
+            respath = self.respaths.get(name, None)
 
-                        if attr_specs:
-                            dim_spec = get_attr_spec(attr_specs, Dimension_Attr_Spec)
-                            if dim_spec:
+            if respath:     # NOTE: it "should" be "is" as newly created node can not be res0
+                res0 = respath[0]
+                resname = self.respaths[res0][-1]
+                resstmt = get_parent_by_class(resname, Type_Declaration_Stmt)
+
+                if resstmt:
+                    if name not in self.typedecls:
+                        self.typedecls[name] = resstmt
+
+                    type_spec, attr_specs, entity_decls = resstmt.subnodes
+                    is_array = False
+
+                    if attr_specs:
+                        dim_spec = get_attr_spec(attr_specs, Dimension_Attr_Spec)
+
+                        if dim_spec:
+                            is_array = True
+
+                    if entity_decls:
+                        entity_decl = get_entity_decl_by_name(entity_decls, resname)
+                        
+                        if entity_decl:
+                            objname, array_spec, char_length, init = entity_decl.subnodes
+
+                            if array_spec:
                                 is_array = True
 
-                        if entity_decls:
-                            entity_decl = get_entity_decl_by_name(entity_decls, resname)
-                            
-                            if entity_decl:
-                                objname, array_spec, char_length, init = entity_decl.subnodes
-                                if array_spec:
-                                    is_array = True
-
-                                if is_array:
-                                    if isinstance(name.parent.wrapped, Part_Ref):
-                                        for sname in collect_names(name.parent.subnodes[1]):
-                                            if sname.wrapped == self.loopctr["dovar"].wrapped:
-                                                if name not in arrvars:
-                                                    arrvars.append(name)
-                                    else:
-                                        import pdb; pdb.set_trace()
+                            if is_array:
+                                if isinstance(name.parent.wrapped, Part_Ref):
+                                    for sname in collect_names(name.parent.subnodes[1]):
+                                        if sname.wrapped == self.loopctr["dovar"].wrapped:
+                                            if name not in arrvars:
+                                                arrvars.append(name)
+                                else:
+                                    print("PTYPE: ", str(name.parent.wrapped))
+                                    import pdb; pdb.set_trace()
         return arrvars
+
+    def collect_func_calls(self, node, arrvars):
+        
+        func_calls = []
+        names = collect_names(node)
+
+        for name in names:
+            if name in self.respaths:
+                resname = self.respaths[name][-1]
+
+                if is_function_name(resname):
+                    import pdb; pdb.set_trace()
+                    #argnames = collect_names(name.parent.subnodes[1])
+
+                    #if any(argname in arrvars for argname in argnames):
+                    #    func_calls.append(name)                
+
+                elif is_subroutine_name(resname):
+                    argnames = collect_names(name.parent.subnodes[1])
+
+                    if any(argname in arrvars for argname in argnames):
+                        func_calls.append(name)                
+
+                elif is_interface_name(resname):
+                    import pdb; pdb.set_trace()
+
+                    names = collect_names(node)
+            else:
+                raise Exception("'%s' is not resolved."%str(name))
+
+        return func_calls
 
     def perform(self, targs):
 
@@ -108,6 +149,7 @@ class LPTOrgTranslator(pyloco.Task):
         self.modules = targs.modules
         self.respaths = targs.respaths
         self.invrespaths = targs.invrespaths
+        self.typedecls = {}
 
         # collect arrvars to be promoted
         arrvars = []
@@ -123,10 +165,11 @@ class LPTOrgTranslator(pyloco.Task):
             funccalls.extend(self.collect_func_calls(subnode, arrvars))
 
         # NOTE: generate promotion even if promotion is already done so that promotion compatibility can be checked.
+        import pdb; pdb.set_trace()
 
         target_vars = []
         for arrvar in arrvars:
-            pvars = self.collect_promote_vars(arrvar)
+            pvars = self.collect_pvars_from_arrvar(arrvar)
             for pvar in pvars:
                 if pvar not in target_vars:
                     target_vars.append(var)
@@ -162,7 +205,7 @@ class LPTOrgTranslator(pyloco.Task):
 
         import pdb; pdb.set_trace()
 
-    def promote_vars(self, pvars):
+    def promote_vars(self, pvars, arrvars, funccalls, globalvars):
 
         # actual promotion happens here
         import pdb; pdb.set_trace() 
@@ -179,8 +222,8 @@ class LPTOrgTranslator(pyloco.Task):
         for ptypedecl in ptypedecls:
 
             # collect vars whose typedecl is ptypedecl
-            pvars = self.collect_promote_vars(ptypedecl)
-            self.promote_vars(pvars)
+            pvars = self.collect_pvars_from_typedecl(ptypedecl)
+            self.promote_vars(pvars, arrvars, funccalls, globalvars)
 
 
         # if pvar is global variables, just keep it for later processing after finishing all local promotions

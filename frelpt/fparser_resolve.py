@@ -16,6 +16,9 @@ from frelpt.fparser_parse import Parser
 from frelpt.fparser_search import Searcher
 from frelpt.util import is_name_equal
 
+from frelpt.intrinsics import Intrinsic_Procedures
+from frelpt.node import ConcreteSyntaxNode
+
 fortran_exts = [".f", ".f90", ".f95", ".f03", ".F", ".F90", ".F95", ".F03"]
 
 # TODO: resoving order within subnodes
@@ -24,6 +27,10 @@ fortran_exts = [".f", ".f90", ".f95", ".f03", ".F", ".F90", ".F95", ".F03"]
 # TODO: spec stmt does not resolve, but add node in resolution related bag
 
 class Resolver(pyloco.Task):
+
+    class _Intrinsic_Resolver_Name(object):
+        def __init__(self, name):
+            self.name = name
 
     def _sort_keygen(self, **kwargs):
         def sortkey(self, node):
@@ -235,6 +242,20 @@ class Resolver(pyloco.Task):
         else:
             return self._subnode_resolve(node, res, path)
 
+    def _resolve_implicit_rules(self, node, res, path, upward):
+        import pdb; pdb.set_trace()
+
+    def _resolve_intrinsics(self, node, res, path, upward):
+
+        if path[0].wrapped.string.lower() in Intrinsic_Procedures:
+            resnode = ConcreteSyntaxNode(None, ["expr"], path[0])
+            path.append(resnode)
+            return True
+
+    def resolve_Assignment_Stmt(self, node, res, path, upward):
+        if upward:
+            return self._resolve(node.parent, res, path, upward)
+
     def resolve_Block_Nonlabel_Do_Construct(self, node, res, path, upward):
         if upward:
             return self._resolve(node.parent, res, path, upward)
@@ -279,6 +300,10 @@ class Resolver(pyloco.Task):
 
     def resolve_Implicit_Part(self, node, res, path, upward):
         return self._bypass(node, res, path, upward)
+
+    def resolve_Level_2_Expr(self, node, res, path, upward):
+        if upward:
+            return self._resolve(node.parent, res, path, upward)
 
     def resolve_Loop_Control(self, node, res, path, upward):
         if upward:
@@ -357,7 +382,13 @@ class Resolver(pyloco.Task):
         # TODO: handles resolution with external-subprogram, module, block-data
         #import pdb; pdb.set_trace()
         if upward:
-            import pdb; pdb.set_trace()
+            # resolve with intrinsic names
+            if self._resolve_intrinsics(node, res, path, upward):
+                return True
+            elif self._resolve_implicit_rules(node, res, path, upward):
+                import pdb; pdb.set_trace()
+            else:
+                import pdb; pdb.set_trace()
         else:
             # from USE stmt
             return self._subnode_resolve(node, res, path)

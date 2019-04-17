@@ -43,6 +43,8 @@ class FrelptDirective(pyloco.Task):
             "include" : include,
         }
 
+        self.log_debug(str(forward))
+
         argv = []
         parser = Parser(self.get_proxy())
         retval, _forward = parser.run(argv, forward=forward)

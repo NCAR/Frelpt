@@ -23,7 +23,7 @@ class AppBuildAnalyzer(pyloco.Task):
 
         # for dev on my Macpro only
         macros, includes = {}, {}
-        apppath = "/Users/youngsun/repos/github/Frelpt/tests/sca/complex1"
+        apppath = "/Users/youngsun/repos/github/Frelpt/tests/sca/complex3/org"
         for fname in ("main.f90", "mo_column.f90", "mo_column_extra.f90"):
             macros["%s/%s"%(apppath, fname)] = {} 
             includes["%s/%s"%(apppath, fname)] = [ apppath ]

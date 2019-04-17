@@ -10,10 +10,10 @@ import pyloco
 import frelpt
 
 _here = os.path.dirname(__file__)
-_complex1 = os.path.join(_here, "sca", "complex1")
-_target = os.path.join(_complex1, "main.f90")
-_clean_cmd = "cd %s; make clean"%_complex1
-_build_cmd = "cd %s; make org"%_complex1
+_complex3 = os.path.join(_here, "sca", "complex3", "org")
+_target = os.path.join(_complex3, "main.f90")
+_clean_cmd = "cd %s; make clean"%_complex3
+_build_cmd = "cd %s; make org"%_complex3
 
 class BasicTests(unittest.TestCase):
 
@@ -31,10 +31,9 @@ class BasicTests(unittest.TestCase):
             _build_cmd,
             "--outdir", str(self.tempdir),
             "--log", "basictests",
-            "--debug"
+            "--debug",
         ])
  
-            #"--debug",
 
         self.assertEqual(retval, 0) 
 
