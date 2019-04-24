@@ -17,7 +17,7 @@ from frelpt.fparser_search import Searcher
 from frelpt.util import is_name_equal
 
 from frelpt.intrinsics import Intrinsic_Procedures
-from frelpt.node import ConcreteSyntaxNode
+from frelpt.node import IntrinsicProcedureNode
 
 fortran_exts = [".f", ".f90", ".f95", ".f03", ".F", ".F90", ".F95", ".F03"]
 
@@ -66,6 +66,17 @@ class Resolver(pyloco.Task):
             Specification_Part: self._sort_keygen(Implicit_Part=0, Use_Stmt=1, Import_Stmt=2, Declaration_Construct=3),
         }
 
+        self.macros = {}
+        self.includes = {}
+        self.analyzers = []
+        self.resolvers = None
+        self.searcher = None
+
+        self.trees =  {}
+        self.modules = {}
+        self.respaths = {}
+        self.invrespaths = {}
+
         # TODO: add more sorted nodes
 
 #
@@ -110,33 +121,56 @@ class Resolver(pyloco.Task):
 #                      'Computed_Goto_Stmt'
 #
 
-    subclass_names = []
-    use_names = ['Block_Data_Stmt', 'Specification_Part',
-                 'End_Block_Data_Stmt']
+#    subclass_names = []
+#    use_names = ['Block_Data_Stmt', 'Specification_Part',
+#                 'End_Block_Data_Stmt']
+
     def perform(self, targs):
 
-        self.macros = targs.macros
-        self.includes = targs.includes
-        self.analyzers = targs.analyzers
-        self.resolvers = targs.resolvers
-        self.searcher = targs.searcher
+        if targs.macros:
+            self.macros.update(targs.macros)
 
-        self.trees = targs.trees if targs.trees else {}
-        self.modules = targs.modules if targs.modules else {}
-        self.respaths = targs.respaths if targs.respaths else {}
-        self.invrespaths = targs.invrespaths if targs.invrespaths else {}
+        if targs.includes:
+            self.includes.update(targs.includes)
+
+        if targs.analyzers:
+            self.analyzers = targs.analyzers
+
+        if targs.resolvers:
+            self.resolvers = targs.resolvers
+
+        if targs.searcher:
+            self.searcher = targs.searcher
+
+
+        if targs.trees:
+            self.trees.update(targs.trees)
+
+        if targs.modules:
+            self.modules.update(targs.modules)
+
+        if targs.respaths:
+            self.respaths.update(targs.respaths)
+
+        if targs.invrespaths:
+            self.invrespaths.update(targs.invrespaths)
 
         self._add_modules(targs.node)
 
         respath = []
+        pending = []
 
         self.respaths[targs.node] = respath
 
         self.log_debug("Resolving '%s'"%str(targs.node.wrapped))
 
-        if self._resolve(targs.node, targs.resolvers, respath, True):
+        if self._resolve(targs.node, targs.resolvers, respath, pending, True):
             self.invrespaths[respath[-1]] = respath
             self._analyze(respath)
+
+            if pending:
+                import pdb; pdb.set_trace()
+
             self.log_debug(str(respath))
         else:
             # try implicit 
@@ -208,7 +242,7 @@ class Resolver(pyloco.Task):
         for analyzer in self.analyzers:
             import pdb ;pdb.set_trace()
 
-    def _resolve(self, node, res, path, upward):
+    def _resolve(self, node, res, path, pending, upward):
 
         if node not in path:
             clsname = node.__class__.__name__
@@ -216,9 +250,9 @@ class Resolver(pyloco.Task):
                 return
             path.append(node)
             if clsname.endswith("_List"):
-                return self._bypass(node, res, path, upward)
+                return self._bypass(node, res, path, pending, upward)
             else:
-                return getattr(self, "resolve_"+clsname)(node, res, path, upward)
+                return getattr(self, "resolve_"+clsname)(node, res, path, pending, upward)
 
     def _search_resolve(self, *nodes):
         for n1 in nodes:
@@ -227,50 +261,50 @@ class Resolver(pyloco.Task):
             for n2, res in _fwd["ids"].items():
                 self.run(n2, res)
 
-    def _subnode_resolve(self, node, res, path):
+    def _subnode_resolve(self, node, res, path, pending):
 
         for subnode in self._sorted_subnodes(node):
             if subnode not in path:
                 newpath = list(path)
-                if self._resolve(subnode, res, newpath, False):
+                if self._resolve(subnode, res, newpath, pending, False):
                     path.extend(newpath[len(path):])
                     return True
 
-    def _bypass(self, node, res, path, upward):
+    def _bypass(self, node, res, path, pending, upward):
         if upward:
-            return self._resolve(node.parent, res, path, upward)
+            return self._resolve(node.parent, res, path, pending, upward)
         else:
-            return self._subnode_resolve(node, res, path)
+            return self._subnode_resolve(node, res, path, pending)
 
-    def _resolve_implicit_rules(self, node, res, path, upward):
+    def _resolve_implicit_rules(self, node, res, path, pending, upward):
         import pdb; pdb.set_trace()
 
-    def _resolve_intrinsics(self, node, res, path, upward):
+    def _resolve_intrinsics(self, node, res, path, pending, upward):
 
         if path[0].wrapped.string.lower() in Intrinsic_Procedures:
-            resnode = ConcreteSyntaxNode(None, ["expr"], path[0])
+            resnode = IntrinsicProcedureNode(None, ["expr"], path[0])
             path.append(resnode)
             return True
 
-    def resolve_Assignment_Stmt(self, node, res, path, upward):
+    def resolve_Assignment_Stmt(self, node, res, path, pending, upward):
         if upward:
-            return self._resolve(node.parent, res, path, upward)
+            return self._resolve(node.parent, res, path, pending, upward)
 
-    def resolve_Block_Nonlabel_Do_Construct(self, node, res, path, upward):
+    def resolve_Block_Nonlabel_Do_Construct(self, node, res, path, pending, upward):
         if upward:
-            return self._resolve(node.parent, res, path, upward)
+            return self._resolve(node.parent, res, path, pending, upward)
  
-    def resolve_Call_Stmt(self, node, res, path, upward):
+    def resolve_Call_Stmt(self, node, res, path, pending, upward):
         if upward:
-            return self._resolve(node.parent, res, path, upward)
+            return self._resolve(node.parent, res, path, pending, upward)
 
-    def resolve_Comment(self, node, res, path, upward):
+    def resolve_Comment(self, node, res, path, pending, upward):
         pass
 
-    def resolve_Contains_Stmt(self, node, res, path, upward):
+    def resolve_Contains_Stmt(self, node, res, path, pending, upward):
         pass
 
-    def resolve_Entity_Decl(self, node, res, path, upward):
+    def resolve_Entity_Decl(self, node, res, path, pending, upward):
         """
         <entity-decl> = <object-name> [ ( <array-spec> ) ]
             [ * <char-length> ] [ <initialization> ]
@@ -282,34 +316,34 @@ class Resolver(pyloco.Task):
 
         else:
             name, array_spec, char_length, init = node.subnodes
-            if self._resolve(name, res, path, upward):
+            if self._resolve(name, res, path, pending, upward):
                 self._search_resolve(array_spec, char_length, init)
                 return True
 
-    def resolve_Execution_Part(self, node, res, path, upward):
+    def resolve_Execution_Part(self, node, res, path, pending, upward):
         if upward:
-            return self._resolve(node.parent, res, path, upward)
+            return self._resolve(node.parent, res, path, pending, upward)
 
-    def resolve_Implicit_Stmt(self, node, res, path, upward):
+    def resolve_Implicit_Stmt(self, node, res, path, pending, upward):
 
         if node not in res.implicit_rules:
             res.implicit_rules.append(node)
 
         if upward:
-            return self._resolve(node.parent, res, path, upward)
+            return self._resolve(node.parent, res, path, pending, upward)
 
-    def resolve_Implicit_Part(self, node, res, path, upward):
-        return self._bypass(node, res, path, upward)
+    def resolve_Implicit_Part(self, node, res, path, pending, upward):
+        return self._bypass(node, res, path, pending, upward)
 
-    def resolve_Level_2_Expr(self, node, res, path, upward):
+    def resolve_Level_2_Expr(self, node, res, path, pending, upward):
         if upward:
-            return self._resolve(node.parent, res, path, upward)
+            return self._resolve(node.parent, res, path, pending, upward)
 
-    def resolve_Loop_Control(self, node, res, path, upward):
+    def resolve_Loop_Control(self, node, res, path, pending, upward):
         if upward:
-            return self._resolve(node.parent, res, path, upward)
+            return self._resolve(node.parent, res, path, pending, upward)
 
-    def resolve_Main_Program(self, node, res, path, upward):
+    def resolve_Main_Program(self, node, res, path, pending, upward):
         """
             <main-program> = <program-stmt>
                          [ <specification-part> ]
@@ -319,11 +353,11 @@ class Resolver(pyloco.Task):
         """
 
         if upward:
-            if self._subnode_resolve(node, res, path):
+            if self._subnode_resolve(node, res, path, pending):
                 return True
-            return self._resolve(node.parent, res, path, upward)
+            return self._resolve(node.parent, res, path, pending, upward)
 
-    def resolve_Module(self, node, res, path, upward):
+    def resolve_Module(self, node, res, path, pending, upward):
         """
         <module> = <module-stmt>
                        [ <specification-part> ]
@@ -334,41 +368,41 @@ class Resolver(pyloco.Task):
             import pdb; pdb.set_trace()
         else:
             # NOTE: mod should pass this if res can be part of Module
-            return self._subnode_resolve(node, res, path)
+            return self._subnode_resolve(node, res, path, pending)
 
-    def resolve_Module_Stmt(self, node, res, path, upward):
+    def resolve_Module_Stmt(self, node, res, path, pending, upward):
         """
         <module-stmt> = MODULE <module-name>
         """
         if Module_Stmt in res:
-            return self._resolve(node.subnodes[1], res, path, upward)
+            return self._resolve(node.subnodes[1], res, path, pending, upward)
 
-    def resolve_Module_Subprogram_Part(self, node, res, path, upward):
+    def resolve_Module_Subprogram_Part(self, node, res, path, pending, upward):
         """
         <module-subprogram-part> = <contains-stmt>
                                        <module-subprogram>
                                        [ <module-subprogram> ]...
         """
-        return self._bypass(node, res, path, upward)
+        return self._bypass(node, res, path, pending, upward)
 
-    def resolve_Name(self, node, res, path, upward):
+    def resolve_Name(self, node, res, path, pending, upward):
         if upward: # start resolve
-            return self._resolve(node.parent, res, path, upward)
+            return self._resolve(node.parent, res, path, pending, upward)
         elif len(path) > 1 and is_name_equal(path[0], path[-1]):
             return True
 
-    def resolve_Nonlabel_Do_Stmt(self, node, res, path, upward):
+    def resolve_Nonlabel_Do_Stmt(self, node, res, path, pending, upward):
         if upward:
-            return self._resolve(node.parent, res, path, upward)
+            return self._resolve(node.parent, res, path, pending, upward)
 
-    def resolve_Part_Ref(self, node, res, path, upward):
+    def resolve_Part_Ref(self, node, res, path, pending, upward):
         """
         <part-ref> = <part-name> [ ( <section-subscript-list> ) ]
         """
         if upward:
-            return self._resolve(node.parent, res, path, upward)
+            return self._resolve(node.parent, res, path, pending, upward)
 
-    def resolve_Program(self, node, res, path, upward):
+    def resolve_Program(self, node, res, path, pending, upward):
         """
         Fortran 2003 rule R201
         program is program-unit
@@ -383,33 +417,33 @@ class Resolver(pyloco.Task):
         #import pdb; pdb.set_trace()
         if upward:
             # resolve with intrinsic names
-            if self._resolve_intrinsics(node, res, path, upward):
+            if self._resolve_intrinsics(node, res, path, pending, upward):
                 return True
-            elif self._resolve_implicit_rules(node, res, path, upward):
+            elif self._resolve_implicit_rules(node, res, path, pending, upward):
                 import pdb; pdb.set_trace()
             else:
                 import pdb; pdb.set_trace()
         else:
             # from USE stmt
-            return self._subnode_resolve(node, res, path)
+            return self._subnode_resolve(node, res, path, pending)
 
-    def resolve_Program_Stmt(self, node, res, path, upward):
+    def resolve_Program_Stmt(self, node, res, path, pending, upward):
         if not upward and Program_Stmt in res:
-            return self._resolve(node.subnodes[1], res, path, upward)
+            return self._resolve(node.subnodes[1], res, path, pending, upward)
 
-    def resolve_Subroutine_Stmt(self, node, res, path, upward):
+    def resolve_Subroutine_Stmt(self, node, res, path, pending, upward):
         """
         <subroutine-stmt>
         = [ <prefix> ] SUBROUTINE <subroutine-name>
           [ ( [ <dummy-arg-list> ] ) [ <proc-language-binding-spec> ] ]
         """
         if upward:
-            return self._resolve(node.parent, res, path, upward)
+            return self._resolve(node.parent, res, path, pending, upward)
         elif Subroutine_Stmt in res:
             prefix, name, dummy_args, binding_spec = node.subnodes
-            return self._resolve(name, res, path, upward)
+            return self._resolve(name, res, path, pending, upward)
 
-    def resolve_Subroutine_Subprogram(self, node, res, path, upward):
+    def resolve_Subroutine_Subprogram(self, node, res, path, pending, upward):
         """
         <subroutine-subprogram> = <subroutine-stmt>
                                      [ <specification-part> ]
@@ -417,17 +451,17 @@ class Resolver(pyloco.Task):
                                      [ <internal-subprogram-part> ]
                                   <end-subroutine-stmt>
         """
-        return self._bypass(node, res, path, upward)
+        return self._bypass(node, res, path, pending, upward)
 
-    def resolve_Specification_Part(self, node, res, path, upward):
+    def resolve_Specification_Part(self, node, res, path, pending, upward):
         # TODO: resolve with typedecl first? than use?
         # typedecl .. -> use -> implicit
-        return self._subnode_resolve(node, res, path)
+        return self._subnode_resolve(node, res, path, pending)
 
-    def resolve_Tuple(self, node, res, path, upward):
-        return self._bypass(node, res, path, upward)
+    def resolve_Tuple(self, node, res, path, pending, upward):
+        return self._bypass(node, res, path, pending, upward)
            
-    def resolve_Type_Declaration_Stmt(self, node, res, path, upward):
+    def resolve_Type_Declaration_Stmt(self, node, res, path, pending, upward):
         """<type-declaration-stmt> = <declaration-type-spec> [ [ ,
                 <attr-spec> ]... :: ] <entity-decl-list>
 
@@ -435,14 +469,14 @@ class Resolver(pyloco.Task):
 
         if upward:
             # assuming self-resolve is handled by entity_decls
-            return self._resolve(node.parent, res, path, upward)
+            return self._resolve(node.parent, res, path, pending, upward)
         elif Type_Declaration_Stmt in res:
             type_spec, attr_specs, entity_decls = node.subnodes
-            if self._resolve(entity_decls, res, path, upward):
+            if self._resolve(entity_decls, res, path, pending, upward):
                 self._search_resolve(type_spec, attr_specs)
                 return True
 
-    def resolve_Use_Stmt(self, node, res, path, upward):
+    def resolve_Use_Stmt(self, node, res, path, pending, upward):
         """
             Fortran 2003 rule R1109
 
@@ -519,7 +553,7 @@ class Resolver(pyloco.Task):
                 # read 
 
             if topnode:
-                return self._resolve(topnode, res, path, False)
+                return self._resolve(topnode, res, path, pending, False)
 
 #        check if module exists in pre-parsed modules in self.modules
 #        check include paths and find all source files and check module name

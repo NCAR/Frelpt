@@ -5,11 +5,16 @@ from __future__ import unicode_literals, print_function
 import os
 import pyloco
 
+from frelpt.node import ConcreteSyntaxNode
+
 from fparser.two.Fortran2003 import *
 from fparser.two.utils import *
+
+from frelpt.fparser_collect_promotion import CollectVars4Promotion
 from frelpt.fparser_util import (collect_names, get_parent_by_class, get_entity_decl_by_name,
                 get_attr_spec, collect_nodes_by_class, is_function_name, is_subroutine_name,
-                is_interface_name)
+                is_interface_name, replace_dovar_with_section_subscript, append_subnode,
+                remove_subnode, insert_subnode, is_descendant)
 
 def collect_do_loopcontrol(node, bag, depth):
 
@@ -25,6 +30,8 @@ def collect_do_loopcontrol(node, bag, depth):
         bag["stop"]  = counter_expr[1][1].pair
         if len(counter_expr[1]) > 2:
             bag["step"] = counter_expr[1][2].pair if len(counter_expr[1]) > 2 else None
+        else:
+            bag["step"] = None
 
         return True
 
@@ -42,6 +49,8 @@ class LPTOrgTranslator(pyloco.Task):
 
         #evaluate=True, parameter_parse=True
         self.add_option_argument("-o", "--outdir", default=os.getcwd(), help="output directory")
+
+        self.register_forward("trees", help="modified ASTs")
 
     def collect_array_vars(self, node):
 
@@ -87,6 +96,12 @@ class LPTOrgTranslator(pyloco.Task):
                                     print("PTYPE: ", str(name.parent.wrapped))
                                     import pdb; pdb.set_trace()
         return arrvars
+
+    def collect_func_stmt(self, node, donode):
+        while node and hasattr(node, "parent") and node.parent is not donode:
+            node = node.parent
+
+        return node
 
     def collect_func_calls(self, node, arrvars):
         
@@ -149,9 +164,16 @@ class LPTOrgTranslator(pyloco.Task):
         self.modules = targs.modules
         self.respaths = targs.respaths
         self.invrespaths = targs.invrespaths
+
+        # typedecl stmts for variables within thie target do loop
         self.typedecls = {}
 
+        # typedecl stmts for promotion
+        ptypedecls = {} 
+
+        ################################
         # collect arrvars to be promoted
+        ################################
         arrvars = []
         for subnode in targs.subnodes:
             pvars = self.collect_array_vars(subnode)
@@ -159,71 +181,127 @@ class LPTOrgTranslator(pyloco.Task):
                 if pvar not in arrvars:
                     arrvars.append(pvar)
 
+        ##################################################
         # collect function calls that propagetes promotion
+        ##################################################
         funccalls = []
         for subnode in targs.subnodes:
             funccalls.extend(self.collect_func_calls(subnode, arrvars))
 
-        # NOTE: generate promotion even if promotion is already done so that promotion compatibility can be checked.
-        import pdb; pdb.set_trace()
 
-        target_vars = []
-        for arrvar in arrvars:
-            pvars = self.collect_pvars_from_arrvar(arrvar)
-            for pvar in pvars:
-                if pvar not in target_vars:
-                    target_vars.append(var)
-
-        globalvars = []
-
-        # promote vars 
-        global_vars = self.promote_vars(target_vars, arrvars, funccalls, globalvars)
-
-        # promote arrvars
-        for arrvar in arrvars:
-            self.promote_array_var(arrvar)
-
+        funcstmts = []
         for funccall in funccalls:
-            gvars = self.promote_func_call(funcall)
-            global_vars.extend(gvars)
+            funcstmts.append(self.collect_func_stmt(funccall, targs.donode.parent))
 
-        # promote typedecl stmts
-        for tdecl in typedecls:
-            self.promote_typedecl(tdecl)
+        # NOTE: generate promotion even if promotion is already done so that promotion compatibility can be checked.
 
+        ##############################
+        # collect pvars to be promoted
+        ##############################
+        pvarcollector_parent = self.get_proxy()
+        pvarcollector = CollectVars4Promotion(pvarcollector_parent)
+        pvarcollector_forward = {
+            "nodes" : arrvars,
+            "respaths": self.respaths,
+            "invrespaths": self.invrespaths,
+        }
+        _, _pfwd = pvarcollector.run(["--log", "pvarcollector"], forward=pvarcollector_forward)
+        target_vars = _pfwd["pvars"]
+
+        global_vars = []
+
+        ##############
+        # promote vars 
+        ##############
+        self.promote_vars(target_vars, arrvars, funccalls, global_vars, ptypedecls)
+
+        ##################################################
         # reposition this subnode to just above of do node
+        ##################################################
         pnode = targs.donode.parent
         idxdo = pnode.subnodes.index(targs.donode)
-        pnode.subnodes.pop(idxdo)
 
-        for subnode in targs.subnodes:
-            pnode.subnodes.insert(idxdo, subnode) 
+        #import pdb; pdb.set_trace()
+        for funcstmt in funcstmts:
+            pfunc = funcstmt.parent
+            idx = pfunc.subnodes.index(funcstmt)
+            f = remove_subnode(pfunc, idx)
+            insert_subnode(pnode, idxdo, f)
+
+        #################
+        # promote arrvars
+        #################
+        for arrvar in arrvars:
+            if any(is_descendant(arrvar, fs) for fs in funcstmts):
+                self.promote_array_var(arrvar)
+
+        ###################
+        # promote funccalls
+        ###################
+        for funccall in funccalls:
+            gvars = self.promote_func_call(funccall, global_vars)
+
+        ########################
+        # promote typedecl stmts
+        ########################
+        for tdecl in ptypedecls:
+            self.promote_typedecl(tdecl)
         
+        ####################################
         # process global variable promotions
-        for gvar in globalvars:
+        ####################################
+        for gvar in global_vars:
             self.promote_global_var(gvar)
 
+        self.add_forward(trees=self.trees)
+
+
+    def promote_typedecl(self, tdecl):
         import pdb; pdb.set_trace()
 
-    def promote_vars(self, pvars, arrvars, funccalls, globalvars):
+
+    def promote_func_call(self, funccall, global_vars):
+
+        actual_args = funccall.parent.subnodes[1]
+
+        if isinstance(actual_args.wrapped, Actual_Arg_Spec_List):
+
+            start = Actual_Arg_Spec(self.loopctr["start"].wrapped.tofortran())            
+            stop = Actual_Arg_Spec(self.loopctr["stop"].wrapped.tofortran())            
+            if self.loopctr["step"]:
+                step = Actual_Arg_Spec(self.loopctr["step"].wrapped.tofortran())            
+            else:
+                step = Actual_Arg_Spec("1")
+
+            append_subnode(actual_args, ConcreteSyntaxNode(actual_args, "expr", start))
+            append_subnode(actual_args, ConcreteSyntaxNode(actual_args, "expr", stop))
+            append_subnode(actual_args, ConcreteSyntaxNode(actual_args, "expr", step))
+        else:
+            import pdb; pdb.set_trace()
+
+    def promote_array_var(self, arrvar):
+
+        if isinstance(arrvar.parent.wrapped, Part_Ref):
+            replace_dovar_with_section_subscript(arrvar.parent.subnodes[1],
+                                                 self.loopctr)
+        else:
+            import pdb; pdb.set_trace()
+
+    def promote_vars(self, pvars, arrvars, funccalls, globalvars, ptypedecls):
 
         # actual promotion happens here
-        import pdb; pdb.set_trace() 
-
-
+        #import pdb; pdb.set_trace() 
 
         # collect typedecls to be promoted
-        ptypedecls = []
         for pvar in pvars:
             ptypedecl = self.get_promote_typedecl(pvar)
             if ptypedecl not in ptypedecls:
                 ptypedecls.append(ptypedecl)
 
         for ptypedecl in ptypedecls:
-
             # collect vars whose typedecl is ptypedecl
             pvars = self.collect_pvars_from_typedecl(ptypedecl)
-            self.promote_vars(pvars, arrvars, funccalls, globalvars)
+            self.promote_vars(pvars, arrvars, funccalls, globalvars, ptypedecls)
 
 
         # if pvar is global variables, just keep it for later processing after finishing all local promotions

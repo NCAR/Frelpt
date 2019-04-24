@@ -46,18 +46,26 @@ class FrelptAnalyzer(pyloco.Task):
                 import pdb ;pdb.set_trace()
 
 
-        parent = self.get_proxy()
-
-        searcher = Searcher(parent)
+        searcher_parent = self.get_proxy()
+        searcher = Searcher(searcher_parent)
 
         #resolver = Resolver(trees, macros, includes, insearch_analyzers)
         #argv = [targs.target]
         #direct = FrelptDirective(parent)
         #retval, _forward = direct.run(argv, forward=forward)
 
-        resolver = Resolver(parent)
-
         insearch_analyzers = []
+
+        resolver_parent = self.get_proxy()
+        resolver = Resolver(resolver_parent)
+        resolver_shared = {
+            "macros" : dict(macros),
+            "includes" : dict(includes),
+            "analyzers" : list(insearch_analyzers),
+            "searcher" : searcher,
+            "trees" : trees,
+        }
+        resolver_parent.shared.update(resolver_shared) 
 
         analyzer_info = {
             "trees": trees,
@@ -75,20 +83,17 @@ class FrelptAnalyzer(pyloco.Task):
 
             searcher_forward = {"node" : node}
             _, _sfwd = searcher.run(["--log", "searcher"], forward=searcher_forward)
-            
+
+          
             for node, res in _sfwd["ids"].items():
 
                 resolver_forward = {
                     "node" : node,
                     "resolvers" : res,
-                    "macros" : dict(macros),
-                    "includes" : dict(includes),
-                    "analyzers" : list(insearch_analyzers),
-                    "searcher" : searcher,
-                    "trees" : analyzer_info["trees"],
                 }
 
                 _, rfwd = resolver.run(["--log", "resolver"], forward=resolver_forward)
+
                 analyzer_info["trees"].update(rfwd["trees"])
                 analyzer_info["modules"].update(rfwd["modules"])
                 analyzer_info["respaths"].update(rfwd["respaths"])

@@ -6,6 +6,7 @@ import os
 import pyloco
 
 from frelpt.fparser_lptorg import LPTOrgTranslator, collect_do_loopcontrol
+from frelpt.fparser_srcgen import LPTSourceGenerator
 
 class FrelptTranslator(pyloco.Task):
 
@@ -62,6 +63,11 @@ class FrelptTranslator(pyloco.Task):
         translator = LPTOrgTranslator(parent)
         retval, _forward = translator.run(argv, forward=forward)
 
-        # remove donode and connect dosubnodes to the parent of donode
-        import pdb; pdb.set_trace()
+        forward = {
+            "trees": _forward["trees"],
+        }
+
+        argv = []
+        srcgen = LPTSourceGenerator(parent)
+        retval, _forward = srcgen.run(argv, forward=forward)
 

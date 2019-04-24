@@ -92,8 +92,6 @@ class FrelptController(pyloco.Task):
         trans = FrelptTranslator(parent)
         retval, _forward = trans.run(argv, forward=forward)
 
-        import pdb; pdb.set_trace()
-
         #######################################
         # generate translated outputs
         #######################################

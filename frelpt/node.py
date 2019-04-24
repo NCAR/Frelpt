@@ -100,6 +100,9 @@ class BlockNode(ConcreteSyntaxNode):
         for subnode in self.subnodes:
                 subnode.resolve()
 
+class IntrinsicProcedureNode(ConcreteSyntaxNode):
+    pass
+
 class Tuple(BlockNode):
 
     def __getitem__(self, index):

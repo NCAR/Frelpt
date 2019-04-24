@@ -2,6 +2,10 @@
 
 from __future__ import unicode_literals, print_function
 
+import copy
+
+from frelpt.node import ConcreteSyntaxNode
+
 from fparser.two.Fortran2003 import *
 from fparser.two.utils import *
 
@@ -93,6 +97,7 @@ def get_entity_decl_by_name(node, name):
         if objname.wrapped == name.wrapped:
             return entity_decl
 
+
 def get_parent_by_class(node, pcls):
 
     if pcls is None:
@@ -100,18 +105,13 @@ def get_parent_by_class(node, pcls):
 
     while node:
         if hasattr(node, "wrapped"):
-            if isinstance(pcls, (list, tuple)):
-                for pc in pcls:
-                    if isinstance(node.wrapped, pc):
-                        return node
-            elif isinstance(node.wrapped, pcls):
+            if isinstance(node.wrapped, pcls):
                 return node
         else:
             import pdb; pdb.set_trace()
 
         node = node.parent if hasattr(node, "parent") else None
 
-    return None
 
 def is_array_var(typedeclstmt, varname):
 
@@ -131,3 +131,100 @@ def is_array_var(typedeclstmt, varname):
                 return True
 
     return False
+
+
+def is_descendant(node1, node2):
+
+        while node1 is not node2:
+            if not node1 or not hasattr(node1, "parent"):
+                return False
+            node1 = node1.parent
+            if node1 is node2:
+                return True
+            
+        return False
+
+def replace_dovar_with_section_subscript(node, loopctr):
+
+    def _generate(lctr):
+
+        def _f():
+
+            start = lctr["start"].wrapped.tofortran()
+            stop = lctr["stop"].wrapped.tofortran()
+
+            if lctr["step"]:
+                step = lctr["step"].wrapped.tofortran()
+                st = Subscript_Triplet("%s:%s:%s" % (start, stop, step))
+
+            else:
+                st = Subscript_Triplet("%s:%s" % (start, stop))
+
+            return ConcreteSyntaxNode(None, "expr", st)
+
+        return _f
+
+    replace_name_by_generator(node, loopctr["dovar"], _generate(loopctr))
+
+# TODO: change tuple to list in items attr
+# TODO: create a function that generate a fparser node and assign into Node tree
+
+def replace_subnode(node, idx, dest):
+    dest.parent = node
+    if hasattr(node.wrapped, "items"):
+        _t = list(node.wrapped.items)
+        _t[idx] = dest.wrapped
+        node.wrapped.items = tuple(_t)
+    elif hasattr(node.wrapped, "content"):
+        node.wrapped.content[idx] = dest.wrapped
+    node.subnodes[idx] = dest
+
+def append_subnode(node, dest):
+    dest.parent = node
+    if hasattr(node.wrapped, "items"):
+        _t = list(node.wrapped.items)
+        _t.append(dest.wrapped)
+        node.wrapped.items = tuple(_t)
+    elif hasattr(node.wrapped, "content"):
+        node.wrapped.content.append(dest.wrapped)
+    node.subnodes.append(dest)
+
+def remove_subnode(node, idx):
+    subnode = node.subnodes.pop(idx)
+    subnode.parent = None
+    if hasattr(node.wrapped, "items"):
+        _t = list(node.wrapped.items)
+        _t.pop(idx)
+        node.wrapped.items = tuple(_t)
+    elif hasattr(node.wrapped, "content"):
+        node.wrapped.content.pop(idx)
+    return subnode
+
+def insert_subnode(node, idx, dest):
+    dest.parent = node
+    if hasattr(node.wrapped, "items"):
+        _t = list(node.wrapped.items)
+        _t.insert(idx, dest.wrapped)
+        node.wrapped.items = tuple(_t)
+    elif hasattr(node.wrapped, "content"):
+        node.wrapped.content.insert(idx, dest.wrapped)
+    node.subnodes.insert(idx, dest)
+
+def replace_name_by_generator(target, name, generator):
+
+    def _replace(node, bag, depth):
+
+        if hasattr(node, "wrapped") and node.wrapped == bag[0].wrapped:
+            idx = node.parent.subnodes.index(node)
+            replace_subnode(node.parent, idx, bag[1]())
+#            newnode.parent = node.parent
+#            if hasattr(node.parent.wrapped, "items"):
+#                _t = list(node.parent.wrapped.items)
+#                _t[idx] = newnode.wrapped
+#                node.parent.wrapped.items = tuple(_t)
+#            elif hasattr(node.parent.wrapped, "content"):
+#                node.parent.wrapped.content[idx] = newnode.wrapped
+#            node.parent.subnodes[idx] = newnode
+
+    bag = [name, generator]
+    target.traverse(bag, node=target, func=_replace)

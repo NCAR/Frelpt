@@ -181,7 +181,7 @@ term_final_binding          = Res(Final_Binding)
 res_variable                = term_type_declaration_stmt | term_use_stmt
 res_type_name               = term_derived_type_stmt | term_use_stmt
 res_label                   = term_pass # do not support label for now
-res_procedure_name          = term_function_stmt | term_subroutine_stmt | term_external_stmt | term_interface_stmt
+res_procedure_name          = term_function_stmt | term_subroutine_stmt | term_external_stmt | term_interface_stmt | term_use_stmt
 
 #res_expr                    = Res() # FOR DEV.
 res_expr                    = term_type_declaration_stmt | term_function_stmt | term_interface_stmt | term_subroutine_stmt | term_use_stmt | term_external_stmt | term_parameter_stmt | term_derived_type_stmt | term_specific_binding | term_generic_binding | term_final_binding
@@ -249,7 +249,7 @@ res_structure_constructor   = res_derived_type_spec | res_component_spec
 res_procedure_component_name= term_pass # FOR DEBUG ONLY
 res_proc_component_ref      = res_variable | res_procedure_component_name
 res_proc_binding            = term_specific_binding | term_generic_binding | term_final_binding
-res_procedure_designator    = res_procedure_name | res_proc_component_ref | res_proc_binding | term_use_stmt
+res_procedure_designator    = res_procedure_name | res_proc_component_ref | res_proc_binding
 res_alt_return_spec         = res_label
 res_actual_arg              = res_expr | res_variable | res_procedure_name | res_proc_component_ref | res_alt_return_spec
 res_actual_arg_spec         = res_actual_arg
