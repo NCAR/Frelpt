@@ -85,7 +85,9 @@ class FrelptController(pyloco.Task):
             "trees" : _forward["trees"] ,
             "modules" : _forward["modules"], 
             "respaths" : _forward["respaths"], 
-            "invrespaths" : _forward["invrespaths"] 
+            "invrespaths" : _forward["invrespaths"],
+            "macros" : dict(macros), 
+            "includes" : dict(includes) 
         }
 
         argv = []

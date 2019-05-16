@@ -17,6 +17,9 @@ class FrelptAnalyzer(pyloco.Task):
         self.add_option_argument("-m", "--macros", help="macro definitions used during compilation for multiple source files")
         self.add_option_argument("-i", "--includes", help="include directories used during compilation for multiple source files")
         self.add_option_argument("-t", "--trees", help="a container of ASTs")
+        self.add_option_argument("--modules", recursive=True, help="identifier searcher")
+        self.add_option_argument("--respaths", recursive=True, help="identifier searcher")
+        self.add_option_argument("--invrespaths", recursive=True, help="identifier searcher")
 
         self.register_forward("trees", help="ASTs used during resolution")
         self.register_forward("modules", help="module ASTs")
@@ -45,6 +48,19 @@ class FrelptAnalyzer(pyloco.Task):
             else:
                 import pdb ;pdb.set_trace()
 
+        modules = {}
+        if isinstance(targs.modules, dict):
+            modules.update(targs.modules)
+
+        respaths = {}
+        if targs.respaths:
+            if isinstance(targs.respaths, dict):
+                respaths.update(targs.respaths)
+
+        invrespaths = {}
+        if targs.invrespaths:
+            if isinstance(targs.invrespaths, dict):
+                invrespaths.update(targs.invrespaths)
 
         searcher_parent = self.get_proxy()
         searcher = Searcher(searcher_parent)
@@ -69,9 +85,9 @@ class FrelptAnalyzer(pyloco.Task):
 
         analyzer_info = {
             "trees": trees,
-            "modules": {},
-            "respaths": {},
-            "invrespaths": {}
+            "modules": modules,
+            "respaths": respaths,
+            "invrespaths": invrespaths,
         }
 
         for node in targs.node:

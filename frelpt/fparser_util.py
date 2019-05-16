@@ -217,14 +217,13 @@ def replace_name_by_generator(target, name, generator):
         if hasattr(node, "wrapped") and node.wrapped == bag[0].wrapped:
             idx = node.parent.subnodes.index(node)
             replace_subnode(node.parent, idx, bag[1]())
-#            newnode.parent = node.parent
-#            if hasattr(node.parent.wrapped, "items"):
-#                _t = list(node.parent.wrapped.items)
-#                _t[idx] = newnode.wrapped
-#                node.parent.wrapped.items = tuple(_t)
-#            elif hasattr(node.parent.wrapped, "content"):
-#                node.parent.wrapped.content[idx] = newnode.wrapped
-#            node.parent.subnodes[idx] = newnode
 
     bag = [name, generator]
     target.traverse(bag, node=target, func=_replace)
+
+def collect_entity_names(node):
+
+    if isinstance(node.wrapped, Entity_Decl):
+        return [node.subnodes[0]]    
+    else:
+        import pdb; pdb.set_trace()

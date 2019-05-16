@@ -12,7 +12,7 @@ import fparser.two.Fortran2003
 import fparser.two.utils
 
 from frelpt.util import run_shcmd
-from frelpt.node import nodeclass_template, ConcreteSyntaxNode, BlockNode, Tuple
+from frelpt.node import nodeclass_template, ConcreteSyntaxNode, BlockNode, Tuple, generate
 
 fparser_do_constructs = (
     fparser.two.Fortran2003.Block_Nonlabel_Do_Construct,
@@ -232,6 +232,13 @@ class Parser(pyloco.Task):
 
                         wrapnode = node_class(parent, nodetypes, node)
                         parent.subnodes.append(wrapnode)
+
+                        if clsname in ("Type_Name",):
+
+                            wrapped = fparser.two.Fortran2003.Name(str(node))
+                            namenode = generate(wrapped, wrapnode)
+                            wrapnode.wrapped.items = [wrapped]
+                            children = wrapnode.wrapped.items
                     else:
                         parent.subnodes.append(node)
 

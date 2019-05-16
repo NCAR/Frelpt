@@ -136,3 +136,23 @@ def walk_ast(node, node_classes=None, node_types=None):
         for subnode in node.subnodes:
             for _n in walk_ast(subnode, node_classes=node_classes, node_types=node_types):
                 yield _n
+
+def generate(wrapped, parent=None):
+
+    name = wrapped.__class__.__name__
+    lenv = {}
+    exec("class %s(ConcreteSyntaxNode):\n    pass" % name, globals(), lenv)
+
+    if hasattr(wrapped, "content"):
+        node = lenv[name](parent, ["stmt"] , wrapped)
+        subnodes = getattr(wrapped, "content", None)
+
+    else:
+        node = lenv[name](parent, ["expr"] , wrapped)
+        subnodes = getattr(wrapped, "items", None)
+
+    if subnodes:
+        for subnode in subnodes:
+            node.subnodes.append(generate(subnode, node))
+
+    return node

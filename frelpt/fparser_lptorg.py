@@ -10,12 +10,15 @@ from frelpt.node import ConcreteSyntaxNode
 from fparser.two.Fortran2003 import *
 from fparser.two.utils import *
 
+from frelpt.fparser_argument import FparserArgument
+from frelpt.fparser_lptfunc import LPTFunctionTranslator
 from frelpt.fparser_collect_promotion import CollectVars4Promotion
 from frelpt.fparser_util import (collect_names, get_parent_by_class, get_entity_decl_by_name,
                 get_attr_spec, collect_nodes_by_class, is_function_name, is_subroutine_name,
                 is_interface_name, replace_dovar_with_section_subscript, append_subnode,
                 remove_subnode, insert_subnode, is_descendant)
 
+# collect start, stop, and step parameters
 def collect_do_loopcontrol(node, bag, depth):
 
     if hasattr(node, "wrapped") and isinstance(node.wrapped, Loop_Control):
@@ -35,8 +38,10 @@ def collect_do_loopcontrol(node, bag, depth):
 
         return True
 
+# pushdown originating source file
 class LPTOrgTranslator(pyloco.Task):
 
+    # register command line arguments and forward
     def __init__(self, parent):
 
         self.add_data_argument("donode", required=True, help="org do node for loop pushdown translation")
@@ -46,94 +51,15 @@ class LPTOrgTranslator(pyloco.Task):
         self.add_data_argument("modules", required=True, help="all modules")
         self.add_data_argument("respaths", required=True, help="a list of resolution path")
         self.add_data_argument("invrespaths", required=True, help="a inverse list of resolution path")
+        self.add_data_argument("macros", required=True, help="macro definitions used during compilation for multiple source files")
+        self.add_data_argument("includes", required=True, help="include directories used during compilation for multiple source files")
 
         #evaluate=True, parameter_parse=True
         self.add_option_argument("-o", "--outdir", default=os.getcwd(), help="output directory")
 
         self.register_forward("trees", help="modified ASTs")
 
-    def collect_array_vars(self, node):
-
-        arrvars = []
-
-        for name in collect_names(node):
-            respath = self.respaths.get(name, None)
-
-            if respath:     # NOTE: it "should" be "is" as newly created node can not be res0
-                res0 = respath[0]
-                resname = self.respaths[res0][-1]
-                resstmt = get_parent_by_class(resname, Type_Declaration_Stmt)
-
-                if resstmt:
-                    if name not in self.typedecls:
-                        self.typedecls[name] = resstmt
-
-                    type_spec, attr_specs, entity_decls = resstmt.subnodes
-                    is_array = False
-
-                    if attr_specs:
-                        dim_spec = get_attr_spec(attr_specs, Dimension_Attr_Spec)
-
-                        if dim_spec:
-                            is_array = True
-
-                    if entity_decls:
-                        entity_decl = get_entity_decl_by_name(entity_decls, resname)
-                        
-                        if entity_decl:
-                            objname, array_spec, char_length, init = entity_decl.subnodes
-
-                            if array_spec:
-                                is_array = True
-
-                            if is_array:
-                                if isinstance(name.parent.wrapped, Part_Ref):
-                                    for sname in collect_names(name.parent.subnodes[1]):
-                                        if sname.wrapped == self.loopctr["dovar"].wrapped:
-                                            if name not in arrvars:
-                                                arrvars.append(name)
-                                else:
-                                    print("PTYPE: ", str(name.parent.wrapped))
-                                    import pdb; pdb.set_trace()
-        return arrvars
-
-    def collect_func_stmt(self, node, donode):
-        while node and hasattr(node, "parent") and node.parent is not donode:
-            node = node.parent
-
-        return node
-
-    def collect_func_calls(self, node, arrvars):
-        
-        func_calls = []
-        names = collect_names(node)
-
-        for name in names:
-            if name in self.respaths:
-                resname = self.respaths[name][-1]
-
-                if is_function_name(resname):
-                    import pdb; pdb.set_trace()
-                    #argnames = collect_names(name.parent.subnodes[1])
-
-                    #if any(argname in arrvars for argname in argnames):
-                    #    func_calls.append(name)                
-
-                elif is_subroutine_name(resname):
-                    argnames = collect_names(name.parent.subnodes[1])
-
-                    if any(argname in arrvars for argname in argnames):
-                        func_calls.append(name)                
-
-                elif is_interface_name(resname):
-                    import pdb; pdb.set_trace()
-
-                    names = collect_names(node)
-            else:
-                raise Exception("'%s' is not resolved."%str(name))
-
-        return func_calls
-
+    # main routine
     def perform(self, targs):
 
         # TODO: analyze loop-independent dependecy
@@ -164,6 +90,8 @@ class LPTOrgTranslator(pyloco.Task):
         self.modules = targs.modules
         self.respaths = targs.respaths
         self.invrespaths = targs.invrespaths
+        self.macros = targs.macros
+        self.includes = targs.includes
 
         # typedecl stmts for variables within thie target do loop
         self.typedecls = {}
@@ -185,8 +113,10 @@ class LPTOrgTranslator(pyloco.Task):
         # collect function calls that propagetes promotion
         ##################################################
         funccalls = []
+        arr_actargs = {}
+
         for subnode in targs.subnodes:
-            funccalls.extend(self.collect_func_calls(subnode, arrvars))
+            funccalls.extend(self.collect_func_calls(subnode, arrvars, arr_actargs))
 
 
         funcstmts = []
@@ -239,7 +169,7 @@ class LPTOrgTranslator(pyloco.Task):
         # promote funccalls
         ###################
         for funccall in funccalls:
-            gvars = self.promote_func_call(funccall, global_vars)
+            gvars = self.promote_func_call(funccall, arr_actargs, global_vars)
 
         ########################
         # promote typedecl stmts
@@ -255,12 +185,102 @@ class LPTOrgTranslator(pyloco.Task):
 
         self.add_forward(trees=self.trees)
 
+    # collect all array variables used inside of the do loop
+    def collect_array_vars(self, node):
+
+        arrvars = []
+
+        for name in collect_names(node):
+            respath = self.respaths.get(name, None)
+
+            if respath:     # NOTE: it "should" be "is" as newly created node can not be res0
+                res0 = respath[0]
+                resname = self.respaths[res0][-1]
+                resstmt = get_parent_by_class(resname, Type_Declaration_Stmt)
+
+                if resstmt:
+                    if name not in self.typedecls:
+                        self.typedecls[name] = resstmt
+
+                    type_spec, attr_specs, entity_decls = resstmt.subnodes
+                    is_array = False
+
+                    if attr_specs:
+                        dim_spec = get_attr_spec(attr_specs, Dimension_Attr_Spec)
+
+                        if dim_spec:
+                            is_array = True
+
+                    if entity_decls:
+                        entity_decl = get_entity_decl_by_name(entity_decls, resname)
+                        
+                        if entity_decl:
+                            objname, array_spec, char_length, init = entity_decl.subnodes
+
+                            if array_spec:
+                                is_array = True
+
+                            if is_array:
+                                if isinstance(name.parent.wrapped, Part_Ref):
+                                    for sname in collect_names(name.parent.subnodes[1]):
+                                        if sname.wrapped == self.loopctr["dovar"].wrapped:
+                                            if name not in arrvars:
+                                                arrvars.append(name)
+                                else:
+                                    print("PTYPE: ", str(name.parent.wrapped))
+                                    import pdb; pdb.set_trace()
+        return arrvars
+
+    # find direct sub-statement of the do loop
+    def collect_func_stmt(self, node, donode):
+        while node and hasattr(node, "parent") and node.parent is not donode:
+            node = node.parent
+
+        return node
+
+    # collect names in function call, and names of arrvars used as actual arguemnts
+    def collect_func_calls(self, node, arrvars, arr_actargs):
+        
+        func_calls = []
+        names = collect_names(node)
+
+        for name in names:
+            if name in self.respaths:
+                resname = self.respaths[name][-1]
+
+                if is_function_name(resname):
+                    import pdb; pdb.set_trace()
+                    #argnames = collect_names(name.parent.subnodes[1])
+
+                    #if any(argname in arrvars for argname in argnames):
+                    #    func_calls.append(name)                
+
+                elif is_subroutine_name(resname):
+                    argnames = collect_names(name.parent.subnodes[1])
+                    actargs = []
+                    arr_actargs[name] = actargs
+
+                    for argname in argnames:
+                        if argname in arrvars:
+                            actargs.append(argname)
+                            if name not in func_calls:
+                                func_calls.append(name)                
+
+                elif is_interface_name(resname):
+                    import pdb; pdb.set_trace()
+
+                    names = collect_names(node)
+            else:
+                raise Exception("'%s' is not resolved."%str(name))
+
+        return func_calls
+
 
     def promote_typedecl(self, tdecl):
         import pdb; pdb.set_trace()
 
 
-    def promote_func_call(self, funccall, global_vars):
+    def promote_func_call(self, funccall, arr_actargs, global_vars):
 
         actual_args = funccall.parent.subnodes[1]
 
@@ -273,11 +293,45 @@ class LPTOrgTranslator(pyloco.Task):
             else:
                 step = Actual_Arg_Spec("1")
 
-            append_subnode(actual_args, ConcreteSyntaxNode(actual_args, "expr", start))
-            append_subnode(actual_args, ConcreteSyntaxNode(actual_args, "expr", stop))
-            append_subnode(actual_args, ConcreteSyntaxNode(actual_args, "expr", step))
+            insert_subnode(actual_args, 0, ConcreteSyntaxNode(actual_args, "expr", step))
+            insert_subnode(actual_args, 0, ConcreteSyntaxNode(actual_args, "expr", stop))
+            insert_subnode(actual_args, 0, ConcreteSyntaxNode(actual_args, "expr", start))
         else:
             import pdb; pdb.set_trace()
+
+        if funccall in self.respaths:
+
+            # if no search of the file that contains the funccall
+            # do analyze search and resolve first 
+
+            parent = self.get_proxy()
+            funcname = self.respaths[funccall][-1]
+
+            dummy_args = []
+
+            argsvc = FparserArgument(funccall, funcname)
+
+            for aarg in arr_actargs[funccall]:
+                dummy_args.append(argsvc.actual2dummy(aarg, index_offset=3))
+
+            forward = {
+                "funcname": funcname,
+                "promote": dummy_args,
+                "loopcontrol": self.loopctr,
+                "respaths": self.respaths,
+                "invrespaths": self.invrespaths,
+                "macros": self.macros,
+                "includes": self.includes,
+                "trees": self.trees,
+            }
+
+            argv = []
+            #import pdb; pdb.set_trace()
+            translator = LPTFunctionTranslator(parent)
+            retval, _forward = translator.run(argv, forward=forward)
+
+        else:
+            raise Exception("Function name '%s' is not resolved yet." % str(funccall))
 
     def promote_array_var(self, arrvar):
 

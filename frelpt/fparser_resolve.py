@@ -158,22 +158,29 @@ class Resolver(pyloco.Task):
         self._add_modules(targs.node)
 
         respath = []
-        pending = []
+        pending = {"implicit_nodes": []}
 
         self.respaths[targs.node] = respath
 
         self.log_debug("Resolving '%s'"%str(targs.node.wrapped))
 
-        if self._resolve(targs.node, targs.resolvers, respath, pending, True):
+        if self._resolve(targs.node, self.resolvers, respath, pending, True):
             self.invrespaths[respath[-1]] = respath
             self._analyze(respath)
 
-            if pending:
-                import pdb; pdb.set_trace()
+            # NOTE: process any pending tasks
+            #if pending:
+            #    import pdb; pdb.set_trace()
 
             self.log_debug(str(respath))
         else:
+
             # try implicit 
+            if pending["implicit_nodes"]:
+                pass
+
+            # try common blocks 
+
             import pdb; pdb.set_trace()
 
         self.add_forward(trees=self.trees)
@@ -212,6 +219,21 @@ class Resolver(pyloco.Task):
 
                         self._add_modules(tree)
 
+                        #######################################
+                        # analyze application
+                        #######################################
+                        from .analyze import FrelptAnalyzer
+                        forward = {
+                            "node" : [tree],
+                            "macros" : dict(self.macros),
+                            "includes" : dict(self.includes),
+                            "trees" : self.trees 
+                        }
+
+                        analyzer = FrelptAnalyzer(self.get_proxy())
+                        retval, _forward = analyzer.run([], forward=forward)
+
+                        #import pdb; pdb.set_trace()
                         # check if mod name exists
                         for subnode in tree.subnodes:
                             if isinstance(subnode.wrapped, Module):
@@ -259,7 +281,11 @@ class Resolver(pyloco.Task):
             forward = { "node": n1 }
             _, _fwd = self.searcher.run([], forward=forward)
             for n2, res in _fwd["ids"].items():
-                self.run(n2, res)
+                forward = {
+                    "node": n2,
+                    "resolvers": res
+                }
+                self.run([], forward=forward)
 
     def _subnode_resolve(self, node, res, path, pending):
 
@@ -286,6 +312,10 @@ class Resolver(pyloco.Task):
             path.append(resnode)
             return True
 
+    def resolve_Add_Operand(self, node, res, path, pending, upward):
+
+        return self._bypass(node, res, path, pending, upward)
+
     def resolve_Assignment_Stmt(self, node, res, path, pending, upward):
         if upward:
             return self._resolve(node.parent, res, path, pending, upward)
@@ -303,6 +333,36 @@ class Resolver(pyloco.Task):
 
     def resolve_Contains_Stmt(self, node, res, path, pending, upward):
         pass
+
+    def resolve_Declaration_Type_Spec(self, node, res, path, pending, upward):
+        """
+        <declaration-type-spec> = <intrinsic-type-spec>
+                                  | TYPE ( <derived-type-spec> )
+                                  | CLASS ( <derived-type-spec> )
+                                  | CLASS ( * )
+        """
+
+        if upward:
+            return self._resolve(node.parent, res, path, pending, upward)
+
+    def resolve_Derived_Type_Def(self, node, res, path, pending, upward):
+
+        if upward:
+            if not self._subnode_resolve(node, res, path, pending):
+                return self._resolve(node.parent, res, path, pending, upward)
+            return True
+        else:
+            return self._subnode_resolve(node, res, path, pending)
+
+    def resolve_Derived_Type_Stmt(self, node, res, path, pending, upward):
+
+        if upward:
+            return self._resolve(node.parent, res, path, pending, upward)
+        elif Derived_Type_Stmt in res:
+            attr_specs, name, Type_Param_Name_List = node.subnodes
+            if self._resolve(name, res, path, pending, upward):
+                self._search_resolve(attr_specs, Type_Param_Name_List)
+                return True
 
     def resolve_Entity_Decl(self, node, res, path, pending, upward):
         """
@@ -326,11 +386,11 @@ class Resolver(pyloco.Task):
 
     def resolve_Implicit_Stmt(self, node, res, path, pending, upward):
 
-        if node not in res.implicit_rules:
-            res.implicit_rules.append(node)
-
         if upward:
             return self._resolve(node.parent, res, path, pending, upward)
+        else:
+            if node not in pending["implicit_nodes"]:
+                pending["implicit_nodes"].append(node)
 
     def resolve_Implicit_Part(self, node, res, path, pending, upward):
         return self._bypass(node, res, path, pending, upward)
@@ -364,10 +424,18 @@ class Resolver(pyloco.Task):
                        [ <module-subprogram-part> ]
                        <end-module-stmt>
         """
+#        #return self._bypass(node, res, path, pending, upward)
+#        if upward:
+#            import pdb; pdb.set_trace()
+#        else:
+#            # NOTE: mod should pass this if res can be part of Module
+#            return self._subnode_resolve(node, res, path, pending)
+
         if upward:
-            import pdb; pdb.set_trace()
+            if not self._subnode_resolve(node, res, path, pending):
+                return self._resolve(node.parent, res, path, pending, upward)
+            return True
         else:
-            # NOTE: mod should pass this if res can be part of Module
             return self._subnode_resolve(node, res, path, pending)
 
     def resolve_Module_Stmt(self, node, res, path, pending, upward):
@@ -402,6 +470,11 @@ class Resolver(pyloco.Task):
         if upward:
             return self._resolve(node.parent, res, path, pending, upward)
 
+    def resolve_Procedure_Designator(self, node, res, path, pending, upward):
+
+        if upward:
+            return self._resolve(node.parent, res, path, pending, upward)
+
     def resolve_Program(self, node, res, path, pending, upward):
         """
         Fortran 2003 rule R201
@@ -431,6 +504,10 @@ class Resolver(pyloco.Task):
         if not upward and Program_Stmt in res:
             return self._resolve(node.subnodes[1], res, path, pending, upward)
 
+    def resolve_Specific_Binding(self, node, res, path, pending, upward):
+
+        import pdb; pdb.set_trace()
+
     def resolve_Subroutine_Stmt(self, node, res, path, pending, upward):
         """
         <subroutine-stmt>
@@ -451,16 +528,29 @@ class Resolver(pyloco.Task):
                                      [ <internal-subprogram-part> ]
                                   <end-subroutine-stmt>
         """
-        return self._bypass(node, res, path, pending, upward)
+        if upward:
+            if not self._subnode_resolve(node, res, path, pending):
+                return self._resolve(node.parent, res, path, pending, upward)
+            return True
+        else:
+            return self._subnode_resolve(node, res, path, pending)
 
     def resolve_Specification_Part(self, node, res, path, pending, upward):
         # TODO: resolve with typedecl first? than use?
         # typedecl .. -> use -> implicit
-        return self._subnode_resolve(node, res, path, pending)
+        #if upward:
+        #    return self._resolve(node.parent, res, path, pending, upward)
+        #else:
+        #    return self._subnode_resolve(node, res, path, pending)
+        return self._bypass(node, res, path, pending, upward)
 
     def resolve_Tuple(self, node, res, path, pending, upward):
         return self._bypass(node, res, path, pending, upward)
            
+    def resolve_Type_Bound_Procedure_Part(self, node, res, path, pending, upward):
+
+        return self._bypass(node, res, path, pending, upward)
+
     def resolve_Type_Declaration_Stmt(self, node, res, path, pending, upward):
         """<type-declaration-stmt> = <declaration-type-spec> [ [ ,
                 <attr-spec> ]... :: ] <entity-decl-list>
@@ -476,6 +566,13 @@ class Resolver(pyloco.Task):
                 self._search_resolve(type_spec, attr_specs)
                 return True
 
+    def resolve_Type_Name(self, node, res, path, pending, upward):
+
+        if upward:
+            return self._resolve(node.parent, res, path, pending, upward)
+        elif Derived_Type_Stmt in res:
+            return self._subnode_resolve(node, res, path, pending)
+
     def resolve_Use_Stmt(self, node, res, path, pending, upward):
         """
             Fortran 2003 rule R1109
@@ -484,48 +581,6 @@ class Resolver(pyloco.Task):
                     or USE [ [ , module-nature ] :: ] module-name ,
                         ONLY : [ only-list ]
         """
-
-#        def _parse(usenode, modname):
-#
-#            if modname.wrapped.string in self.modules:
-#                return self.modules[modname.wrapped.string]
-#
-#            mypath = usenode.topnode().filepath
-#
-#            includes = self.includes.get(mypath, [])
-#            for include in includes:
-#                for entry in os.listdir(include):
-#                    base, ext = os.path.splitext(entry)
-#                    if ext in fortran_exts:
-#                        filepath = os.path.join(include, entry)
-#                        if filepath in self.includes and filepath not in self.trees:
-#                            _macro = self.macros.get(filepath, {})                                    
-#                            _include = self.includes.get(filepath, [])                                    
-#                    
-#                            forward = {
-#                                "target" : filepath,
-#                                "macro" : dict(_macro),
-#                                "include" : list(_include),
-#                            }
-#
-#                            argv = ["Parser"]
-#                            parser = Parser(pyloco.Manager())
-#                            retval, _forward = parser.run(argv, forward, {})
-#                                
-#                            tree = _forward["tree"]
-#                            self.trees[filepath] = tree
-#
-#                            self._add_modules(tree)
-#
-#                            # check if mod name exists
-#                            for subnode in tree.subnodes:
-#                                if isinstance(subnode.wrapped, Module):
-#                                    mod_stmt_node = subnode.subnodes[0]
-#                                    mod_stmt_name = mod_stmt_node.subnodes[1]
-#                                    if mod_stmt_name.wrapped.string not in self.modules:
-#                                        self.modules[mod_stmt_name.wrapped.string] = subnode
-#                                    if is_name_equal(modname, mod_stmt_name):
-#                                        return tree
 
         if not upward:
             mod_nature, dcolon, mod_name, only_spec, rename_onlylist = node.subnodes

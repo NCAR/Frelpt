@@ -12,12 +12,14 @@ class FrelptTranslator(pyloco.Task):
 
     def __init__(self, parent):
 
-        self.add_data_argument("trees", required=True, help="AST trees")
         self.add_data_argument("donode", required=True, help="target do node")
         self.add_data_argument("dosubnodes", required=True, help="tarege subnodes of donode")
         self.add_data_argument("modules", required=True, help="module ASTs")
         self.add_data_argument("respaths", required=True, help="resolution paths")
         self.add_data_argument("invrespaths", required=True, help="inverted resolution paths")
+        self.add_data_argument("trees", required=True, help="a container of ASTs")
+        self.add_data_argument("macros", required=True, help="macro definitions used during compilation for multiple source files")
+        self.add_data_argument("includes", required=True, help="include directories used during compilation for multiple source files")
 
         #evaluate=True, parameter_parse=True
         self.add_option_argument("-o", "--outdir", default=os.getcwd(), help="output directory")
@@ -56,7 +58,9 @@ class FrelptTranslator(pyloco.Task):
             "trees": targs.trees,
             "modules": targs.modules,
             "respaths": targs.respaths,
-            "invrespaths": targs.invrespaths
+            "invrespaths": targs.invrespaths,
+            "macros": targs.macros,
+            "includes": targs.includes
         }
 
         argv = []

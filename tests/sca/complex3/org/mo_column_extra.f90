@@ -9,16 +9,16 @@ MODULE mo_column_extra
 
 CONTAINS
 
-  SUBROUTINE compute_one(nz, q, t)
+  SUBROUTINE compute_one(nz, q1, t1)
     IMPLICIT NONE
 
     INTEGER, INTENT(IN)   :: nz   ! Size of the array field
-    REAL, INTENT(INOUT)   :: t(:) ! Field declared as one column only
-    REAL, INTENT(INOUT)   :: q(:) ! Field declared as one column only
+    REAL, INTENT(INOUT)   :: t1(:) ! Field declared as one column only
+    REAL, INTENT(INOUT)   :: q1(:) ! Field declared as one column only
     TYPE(ty_column)       :: column
 
     !$claw parallelize forward
-    CALL column%compute_column(nz, q, t)
+    CALL column%compute_column(nz, q1, t1)
  
   END SUBROUTINE compute_one
 
