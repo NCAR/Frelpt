@@ -10,6 +10,8 @@ import pyloco
 from fparser.two.Fortran2003 import *
 from fparser.two.utils import *
 
+from frelpt.transutil import promote_typedecl
+from frelpt.fparser_collect_promotion import CollectVars4Promotion
 from frelpt.fparser_util import collect_entity_names
 from frelpt.analyze import FrelptAnalyzer
 
@@ -25,11 +27,15 @@ class LPTFunctionTranslator(pyloco.Task):
         self.add_data_argument("macros", required=True, help="macro definitions used during compilation for multiple source files")
         self.add_data_argument("includes", required=True, help="include directories used during compilation for multiple source files")
         self.add_data_argument("trees", required=True, help="a container of ASTs")
+        self.add_data_argument("modules", required=True, help="identifier searcher")
 
         #evaluate=True, parameter_parse=True
         #self.add_option_argument("-o", "--outdir", default=os.getcwd(), help="output directory")
 
-        #self.register_forward("trees", help="modified ASTs")
+        self.register_forward("trees", help="ASTs used during resolution")
+        self.register_forward("modules", help="module ASTs")
+        self.register_forward("respaths", help="resolution paths")
+        self.register_forward("invrespaths", help="inverted resolution paths")
 
     def perform(self, targs):
 
@@ -41,32 +47,16 @@ class LPTFunctionTranslator(pyloco.Task):
         self.macros = targs.macros
         self.includes = targs.includes
         self.trees = targs.trees
-        
-        # find typedecls of dummy arg
-        self.typedecls = {}
-
-        for funcnode in self.funcname.parent.parent.subnodes:
-            if isinstance(funcnode.wrapped, Specification_Part):
-                for specnode in funcnode.subnodes:
-                    if isinstance(specnode.wrapped, Type_Declaration_Stmt):
-                        entity_names = collect_entity_names(specnode.subnodes[2])
-                        for entity in entity_names:
-                            for darg in self.dummy_args:
-                                if entity.wrapped == darg.wrapped:
-                                    if darg in self.typedecls:
-                                        raise Exception("Dupulicated arg typedecl: %s" % str(darg))
-                                    else:
-                                        self.typedecls[darg] = specnode
-
-        #argv = []
-        #analyzer = FrelptAnalyzer(parent)
-        #retval, _forward = analyzer.run(argv, forward=forward)
+        self.modules = targs.modules
 
         forward = {
             "node" : self.funcname.parent.parent.subnodes,
             "macros" : dict(self.macros),
             "includes" : dict(self.includes),
-            "trees" : self.trees
+            "trees" : self.trees,
+            "modules" : self.modules,
+            "respaths" : self.respaths,
+            "invrespaths" : self.invrespaths,
         }
 
         parent = self.get_proxy()
@@ -74,16 +64,77 @@ class LPTFunctionTranslator(pyloco.Task):
         analyzer = FrelptAnalyzer(parent)
         retval, _forward = analyzer.run(argv, forward=forward)
 
+        self.trees.update(_forward["trees"])
+        self.modules.update(_forward["modules"])
+        self.respaths.update(_forward["respaths"])
+        self.invrespaths.update(_forward["invrespaths"])
 
-        import pdb; pdb.set_trace()
+        funccalls = []
+        pvars = []
 
-        # find originating names that are resolved by the typedecls
-        for declname, typedecl in self.typedecls.items():
-            import pdb; pdb.set_trace()
+        for dummy_arg in self.dummy_args:
+            dummy_res_path = self.respaths[dummy_arg]
+            res_name = dummy_res_path[-1]
+            for res_path in self.invrespaths[res_name]:
+                org_name = res_path[0]
+                if org_name is not dummy_arg:
 
-        # if function: repleat with functiontranslator
-        # else: fparser_lptterm.py
-        # find another pvars impacted by this
+                    ##################################################
+                    # collect function calls that propagates promotion
+                    ##################################################
+                    funccalls.extend(self.collect_func_calls(org_name))
 
-        import pdb; pdb.set_trace()
+                    ##############################
+                    # collect pvars to be promoted
+                    ##############################
+                    pvarcollector_parent = self.get_proxy()
+                    pvarcollector = CollectVars4Promotion(pvarcollector_parent)
+                    pvarcollector_forward = {
+                        "nodes" : [org_name],
+                        "respaths": self.respaths,
+                        "invrespaths": self.invrespaths,
+                    }
+                    _, _pfwd = pvarcollector.run(["--log", "pvarcollector"], forward=pvarcollector_forward)
+                    pvars.extend(_pfwd["pvars"])
 
+            ########################
+            # promote typedecl stmts
+            ########################
+            promote_typedecl(dummy_res_path)
+
+        ##############
+        # promote vars 
+        ##############
+        #self.promote_vars(target_vars, arrvars, funccalls, global_vars, ptypedecls)
+
+        ###################
+        # promote funccalls
+        ###################
+        #for funccall in funccalls:
+        #    gvars = self.promote_func_call(funccall, arr_actargs, global_vars)
+
+        self.add_forward(trees=self.trees)
+        self.add_forward(modules=self.modules)
+        self.add_forward(respaths=self.respaths)
+        self.add_forward(invrespaths=self.invrespaths)
+
+    def collect_func_calls(self, node):
+
+        nodecls = node.wrapped.__class__
+        clsname = nodecls.__name__
+
+        if clsname.endswith("_Stmt"):
+            return []
+
+        if nodecls is Actual_Arg_Spec_List:
+
+            if isinstance(node.parent.wrapped, Call_Stmt):
+                return [node.parent.subnodes[0]]
+
+            else:
+                import pdb; pdb.set_trace()
+
+        elif hasattr(node, "parent"):
+            return self.collect_func_calls(node.parent)
+
+        return []

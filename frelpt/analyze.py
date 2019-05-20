@@ -26,41 +26,51 @@ class FrelptAnalyzer(pyloco.Task):
         self.register_forward("respaths", help="resolution paths")
         self.register_forward("invrespaths", help="inverted resolution paths")
 
+        self.trees = {}
+        self.macros = {}
+        self.includes = {}
+        self.modules = {}
+        self.respaths = {}
+        self.invrespaths = {}
+
     def perform(self, targs):
 
-        trees = {}
         if isinstance(targs.trees, dict):
-            trees.update(targs.trees)
+            self.trees.update(targs.trees)
         else:
             import pdb; pdb.set_trace()
 
-        macros = {}
         if targs.macros:
             if isinstance(targs.macros, dict):
-                macros.update(targs.macros)
+                self.macros.update(targs.macros)
             else:
                 import pdb ;pdb.set_trace()
 
-        includes = {}
         if targs.includes:
             if isinstance(targs.includes, dict):
-                includes.update(targs.includes)
+                self.includes.update(targs.includes)
             else:
                 import pdb ;pdb.set_trace()
 
-        modules = {}
         if isinstance(targs.modules, dict):
-            modules.update(targs.modules)
+            self.modules.update(targs.modules)
+        else:
+            pass
+            #import pdb; pdb.set_trace()
 
-        respaths = {}
         if targs.respaths:
             if isinstance(targs.respaths, dict):
-                respaths.update(targs.respaths)
+                self.respaths.update(targs.respaths)
+        else:
+            pass
+            #import pdb; pdb.set_trace()
 
-        invrespaths = {}
         if targs.invrespaths:
             if isinstance(targs.invrespaths, dict):
-                invrespaths.update(targs.invrespaths)
+                self.invrespaths.update(targs.invrespaths)
+        else:
+            pass
+            #import pdb; pdb.set_trace()
 
         searcher_parent = self.get_proxy()
         searcher = Searcher(searcher_parent)
@@ -75,37 +85,46 @@ class FrelptAnalyzer(pyloco.Task):
         resolver_parent = self.get_proxy()
         resolver = Resolver(resolver_parent)
         resolver_shared = {
-            "macros" : dict(macros),
-            "includes" : dict(includes),
-            "analyzers" : list(insearch_analyzers),
+            "macros" : self.macros,
+            "includes" : self.includes,
+            "analyzers" : insearch_analyzers,
             "searcher" : searcher,
-            "trees" : trees,
+            "trees" : self.trees,
         }
-        resolver_parent.shared.update(resolver_shared) 
+        #resolver_parent.shared.update(resolver_shared) 
 
         analyzer_info = {
-            "trees": trees,
-            "modules": modules,
-            "respaths": respaths,
-            "invrespaths": invrespaths,
+            "trees": self.trees,
+            "modules": self.modules,
+            "respaths": self.respaths,
+            "invrespaths": self.invrespaths,
         }
 
         for node in targs.node:
 
             topnode = node.topnode()
             filepath = topnode.filepath
-            if filepath not in trees:
+            if filepath not in self.trees:
                 trees[filepath] = topnode
 
             searcher_forward = {"node" : node}
             _, _sfwd = searcher.run(["--log", "searcher"], forward=searcher_forward)
 
-          
             for node, res in _sfwd["ids"].items():
+
+                #if len(analyzer_info["modules"].keys()) == 1: import pdb; pdb.set_trace()
 
                 resolver_forward = {
                     "node" : node,
                     "resolvers" : res,
+                    "modules": analyzer_info["modules"],
+                    "respaths": analyzer_info["respaths"],
+                    "invrespaths": analyzer_info["invrespaths"],
+                    "macros" : self.macros,
+                    "includes" : self.includes,
+                    "analyzers" : insearch_analyzers,
+                    "searcher" : searcher,
+                    "trees" : analyzer_info["trees"],
                 }
 
                 _, rfwd = resolver.run(["--log", "resolver"], forward=resolver_forward)
@@ -117,7 +136,7 @@ class FrelptAnalyzer(pyloco.Task):
 
         outsearch_analyzers = []
 
-        for path, tree in trees.items():
+        for path, tree in self.trees.items():
             for outsearch_analyzer in outsearch_analyzers:
                 outsearch_analyzer(path, tree)
 

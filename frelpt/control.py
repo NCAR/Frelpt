@@ -81,13 +81,13 @@ class FrelptController(pyloco.Task):
         #######################################
         forward = {
             "donode" : target_donode,
-            "dosubnodes" : target_subnodes[1:],
+            "subnodes" : target_subnodes[1:],
             "trees" : _forward["trees"] ,
             "modules" : _forward["modules"], 
             "respaths" : _forward["respaths"], 
             "invrespaths" : _forward["invrespaths"],
-            "macros" : dict(macros), 
-            "includes" : dict(includes) 
+            "macros" : macros, 
+            "includes" : includes 
         }
 
         argv = []
@@ -97,7 +97,10 @@ class FrelptController(pyloco.Task):
         #######################################
         # generate translated outputs
         #######################################
+        forward = {
+            "trees" : _forward["trees"] ,
+        }
+
         argv = []
         output = FrelptOutput(parent)
         retval, _forward = output.run(argv, forward=forward)
-

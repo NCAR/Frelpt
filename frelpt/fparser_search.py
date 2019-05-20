@@ -1325,7 +1325,7 @@ class Searcher(pyloco.Task):
         ids = {}
 
         if targs.node:
-            self.log_debug("Searching '%s'"%str(targs.node.wrapped))
+            #self.log_debug("Searching '%s'"%str(targs.node.wrapped))
 
             self._search(targs.node, ids, set(res_all_stmts.keys()))
 

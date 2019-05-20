@@ -66,6 +66,7 @@ class Resolver(pyloco.Task):
             Specification_Part: self._sort_keygen(Implicit_Part=0, Use_Stmt=1, Import_Stmt=2, Declaration_Construct=3),
         }
 
+        # TODO: update not assign
         self.macros = {}
         self.includes = {}
         self.analyzers = []
@@ -165,14 +166,19 @@ class Resolver(pyloco.Task):
         self.log_debug("Resolving '%s'"%str(targs.node.wrapped))
 
         if self._resolve(targs.node, self.resolvers, respath, pending, True):
-            self.invrespaths[respath[-1]] = respath
+            if respath[-1] in self.invrespaths:
+                self.invrespaths[respath[-1]].append(respath)
+
+            else:
+                self.invrespaths[respath[-1]] = [respath]
+
             self._analyze(respath)
 
             # NOTE: process any pending tasks
             #if pending:
             #    import pdb; pdb.set_trace()
 
-            self.log_debug(str(respath))
+            #self.log_debug(str(respath))
         else:
 
             # try implicit 
@@ -206,8 +212,10 @@ class Resolver(pyloco.Task):
                         _include = self.includes.get(filepath, [])                                    
                 
                         forward = {
-                            "macro" : dict(_macro),
-                            "include" : list(_include),
+                            "macro" : _macro,
+                            "include" : _include,
+                            "respaths": self.respaths,
+                            "invrespaths": self.invrespaths,
                         }
 
                         argv = [filepath]
@@ -225,15 +233,23 @@ class Resolver(pyloco.Task):
                         from .analyze import FrelptAnalyzer
                         forward = {
                             "node" : [tree],
-                            "macros" : dict(self.macros),
-                            "includes" : dict(self.includes),
-                            "trees" : self.trees 
+                            "macros" : self.macros,
+                            "includes" : self.includes,
+                            "trees" : self.trees,
+                            "modules": self.modules,
+                            "respaths": self.respaths,
+                            "invrespaths": self.invrespaths,
+
                         }
 
                         analyzer = FrelptAnalyzer(self.get_proxy())
                         retval, _forward = analyzer.run([], forward=forward)
 
-                        #import pdb; pdb.set_trace()
+                        self.trees.update(_forward["trees"])
+                        self.modules.update(_forward["modules"])
+                        self.respaths.update(_forward["respaths"])
+                        self.invrespaths.update(_forward["invrespaths"])
+
                         # check if mod name exists
                         for subnode in tree.subnodes:
                             if isinstance(subnode.wrapped, Module):
@@ -283,7 +299,11 @@ class Resolver(pyloco.Task):
             for n2, res in _fwd["ids"].items():
                 forward = {
                     "node": n2,
-                    "resolvers": res
+                    "resolvers": res,
+                    "macros": self.macros,
+                    "includes": self.includes,
+                    "analyzers": self.analyzers,
+                    "searcher": self.searcher,
                 }
                 self.run([], forward=forward)
 
@@ -542,7 +562,14 @@ class Resolver(pyloco.Task):
         #    return self._resolve(node.parent, res, path, pending, upward)
         #else:
         #    return self._subnode_resolve(node, res, path, pending)
-        return self._bypass(node, res, path, pending, upward)
+        #return self._bypass(node, res, path, pending, upward)
+
+        if upward:
+            if not self._subnode_resolve(node, res, path, pending):
+                return self._resolve(node.parent, res, path, pending, upward)
+            return True
+        else:
+            return self._subnode_resolve(node, res, path, pending)
 
     def resolve_Tuple(self, node, res, path, pending, upward):
         return self._bypass(node, res, path, pending, upward)
@@ -608,7 +635,10 @@ class Resolver(pyloco.Task):
                 # read 
 
             if topnode:
-                return self._resolve(topnode, res, path, pending, False)
+                out = self._resolve(topnode, res, path, pending, False)
+                if not out:
+                    import pdb; pdb.set_trace()
+                return out
 
 #        check if module exists in pre-parsed modules in self.modules
 #        check include paths and find all source files and check module name

@@ -65,7 +65,7 @@ class Parser(pyloco.Task):
     def perform(self, targs):
 
         retval = 0
-###
+
         aliases = {}
         if targs.alias:
             for alias in targs.alias:
@@ -86,44 +86,6 @@ class Parser(pyloco.Task):
         if targs.include:
             includes.extend(targs.include)
 
-###
-#        aliases = {}
-#        if targs.alias:
-#            for alias in targs.alias:
-#                for key, value in alias.kwargs:
-#                    aliases[key] = value
-#
-#        macros = {}
-#        if targs.macro:
-#            # TODO: need update pyloco to fit options syntax
-#            if isinstance(targs.macro, dict):
-#                m = targs.macro.get(targs.target, {})
-#                macros.update(m)
-#            else:
-#                for m in targs.macro:
-#                    for v in m.vargs:
-#                        macros[v] = None
-#                    for k, v in m.kwargs.items():
-#                        macros[k] = v
-#        includes = []
-#        if targs.include:
-#            for inc in targs.include:
-#                for v in inc.vargs:
-#                    paths = v.split(":")
-#                    apaths = self.gen_aliases(paths, aliases)
-#                    includes.extend([s.strip() for s in paths])
-#                    includes.extend([s.strip() for s in apaths])
-
-#            if isinstance(targs.include, dict):
-#                inc = targs.include.get(targs.target, [])
-#                includes.extend(inc)
-#            else:
-#                for inc in targs.include:
-#                    for v in inc.vargs:
-#                        paths = v.split(":")
-#                        apaths = self.gen_aliases(paths, aliases)
-#                        includes.extend([s.strip() for s in paths])
-#                        includes.extend([s.strip() for s in apaths])
 
         try:
 
@@ -252,7 +214,7 @@ class Parser(pyloco.Task):
 
                 self.add_forward(tree=tree)
 
-                print("Parsed %s"%path)
+                self.log_debug("Parsed %s"%path)
 
         except fparser.two.utils.FortranSyntaxError as err:
             print("Parser: FAILED Syntax with '{}'.".format(str(err)))
