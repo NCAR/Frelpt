@@ -29,9 +29,6 @@ class LPTFunctionTranslator(pyloco.Task):
         self.add_data_argument("trees", required=True, help="a container of ASTs")
         self.add_data_argument("modules", required=True, help="identifier searcher")
 
-        #evaluate=True, parameter_parse=True
-        #self.add_option_argument("-o", "--outdir", default=os.getcwd(), help="output directory")
-
         self.register_forward("trees", help="ASTs used during resolution")
         self.register_forward("modules", help="module ASTs")
         self.register_forward("respaths", help="resolution paths")
@@ -70,7 +67,7 @@ class LPTFunctionTranslator(pyloco.Task):
         self.invrespaths.update(_forward["invrespaths"])
 
         funccalls = []
-        pvars = []
+        pvars = {}
 
         for dummy_arg in self.dummy_args:
             dummy_res_path = self.respaths[dummy_arg]
@@ -95,7 +92,10 @@ class LPTFunctionTranslator(pyloco.Task):
                         "invrespaths": self.invrespaths,
                     }
                     _, _pfwd = pvarcollector.run(["--log", "pvarcollector"], forward=pvarcollector_forward)
-                    pvars.extend(_pfwd["pvars"])
+                    if org_name in pvars:
+                        pvars[org_name].extend(_pfwd["pvars"])
+                    else:
+                        pvars[org_name] = _pfwd["pvars"]
 
             ########################
             # promote typedecl stmts
@@ -105,6 +105,7 @@ class LPTFunctionTranslator(pyloco.Task):
         ##############
         # promote vars 
         ##############
+        #if pvars: import pdb; pdb.set_trace()
         #self.promote_vars(target_vars, arrvars, funccalls, global_vars, ptypedecls)
 
         ###################

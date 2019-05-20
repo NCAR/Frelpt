@@ -9,6 +9,9 @@ from .control import FrelptController
 
 class FrelptTask(pyloco.Task):
 
+    _name_ = "frelpt"
+    _version_ = "0.1.1"
+
     def __init__(self, parent):
 
         self.add_data_argument("target", help="filepath to the source file having 'pushdown' frelpt directive")
