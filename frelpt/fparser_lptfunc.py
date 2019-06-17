@@ -10,7 +10,7 @@ import pyloco
 from fparser.two.Fortran2003 import *
 from fparser.two.utils import *
 
-from frelpt.transutil import promote_typedecl
+from frelpt.transutil import promote_typedecl, add_dummy_args, add_actual_args
 from frelpt.fparser_collect_promotion import CollectVars4Promotion
 from frelpt.fparser_util import collect_entity_names
 from frelpt.analyze import FrelptAnalyzer
@@ -79,7 +79,9 @@ class LPTFunctionTranslator(pyloco.Task):
                     ##################################################
                     # collect function calls that propagates promotion
                     ##################################################
-                    funccalls.extend(self.collect_func_calls(org_name))
+                    for funccall in self.collect_func_calls(org_name):
+                        if funccall not in funccalls:
+                            funccalls.append(funccall)
 
                     ##############################
                     # collect pvars to be promoted
@@ -93,7 +95,9 @@ class LPTFunctionTranslator(pyloco.Task):
                     }
                     _, _pfwd = pvarcollector.run(["--log", "pvarcollector"], forward=pvarcollector_forward)
                     if org_name in pvars:
-                        pvars[org_name].extend(_pfwd["pvars"])
+                        for pvar in _pfwd["pvars"]:
+                            if pvar not in pvars[org_name]:
+                                pvars[org_name].append(pvar)
                     else:
                         pvars[org_name] = _pfwd["pvars"]
 
@@ -101,6 +105,11 @@ class LPTFunctionTranslator(pyloco.Task):
             # promote typedecl stmts
             ########################
             promote_typedecl(dummy_res_path)
+
+        ########################
+        # add dummy args
+        ########################
+        add_dummy_args(targs.funcname.parent, self.loopctr)
 
         ##############
         # promote vars 
@@ -111,7 +120,8 @@ class LPTFunctionTranslator(pyloco.Task):
         ###################
         # promote funccalls
         ###################
-        #for funccall in funccalls:
+        for funccall in funccalls:
+            add_actual_args(funccall.parent, self.loopctr)
         #    gvars = self.promote_func_call(funccall, arr_actargs, global_vars)
 
         self.add_forward(trees=self.trees)
@@ -127,7 +137,7 @@ class LPTFunctionTranslator(pyloco.Task):
         if clsname.endswith("_Stmt"):
             return []
 
-        if nodecls is Actual_Arg_Spec_List:
+        if nodecls in (Actual_Arg_Spec, Actual_Arg_Spec_List):
 
             if isinstance(node.parent.wrapped, Call_Stmt):
                 return [node.parent.subnodes[0]]

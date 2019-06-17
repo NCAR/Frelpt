@@ -17,7 +17,7 @@ from frelpt.fparser_util import (collect_names, get_parent_by_class, get_entity_
                 get_attr_spec, collect_nodes_by_class,
                 replace_dovar_with_section_subscript, append_subnode,
                 remove_subnode, insert_subnode, is_descendant)
-from frelpt.transutil import collect_func_calls, promote_typedecl
+from frelpt.transutil import collect_func_calls, promote_typedecl, collect_funccall_stmt
 
 # collect start, stop, and step parameters
 def collect_do_loopcontrol(node, bag, depth):
@@ -126,12 +126,15 @@ class FrelptTranslator(pyloco.Task):
         arr_actargs = {}
 
         for subnode in targs.subnodes:
-            funccalls.extend(collect_func_calls(subnode, arrvars, arr_actargs, self.respaths))
-
+            for funccall in collect_func_calls(subnode, arrvars, arr_actargs, self.respaths):
+                if funccall not in funccalls:
+                    funccalls.append(funccall)
 
         funcstmts = []
         for funccall in funccalls:
-            funcstmts.append(self.collect_func_stmt(funccall, targs.donode.parent))
+            funcstmt = collect_funccall_stmt(funccall)
+            if funcstmt and funcstmt not in funcstmts:
+                funcstmts.append(funcstmt)
 
         # NOTE: generate promotion even if promotion is already done so that promotion compatibility can be checked.
 

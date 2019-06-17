@@ -33,6 +33,10 @@ CONTAINS
     !!! TEST YSK
     q = q + sum(t)
 
+!!!!!! expected !!!!!
+!    DO frelpt_index=frelpt_start, frelpt_stop, frelpt_step
+!        q(frelpt_index,:) = q(frelpt_index,:) + sum(t(frelpt_index,:))
+!    END DO
   END SUBROUTINE compute_two
 
 END MODULE mo_column_extra
