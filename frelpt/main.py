@@ -37,7 +37,6 @@ class FrelptTask(pyloco.Task):
             argv = [targs.build, targs.clean, "--outdir", targs.outdir]
             retval, _forward = app_analyzer.run(argv)
 
-            self.log_debug("XXXX")
             # run frelpt controller
             ctrl = FrelptController(parent)
             argv = [targs.target , "--outdir", targs.outdir]

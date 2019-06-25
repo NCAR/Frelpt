@@ -80,7 +80,7 @@ class FrelptTransBase(object):
         tdecl_section = None
 
         # get section from typedecl stmt
-        if is_partref(name.parent):
+        if is_partref(name.parent) and name.parent.subnodes[0] is name:
             if name.parent.subnodes[0] in self.respaths:
                 res = self.respaths[name.parent.subnodes[0]][-1]
 
@@ -106,7 +106,7 @@ class FrelptTransBase(object):
         # get section from exec stmt
         exec_section = None
 
-        if is_partref(name.parent):
+        if is_partref(name.parent) and name.parent.subnodes[0] is name:
             if name.parent.subnodes[0] in self.respaths:
                 res = self.respaths[name.parent.subnodes[0]][-1]
                 if is_entitydecl(res.parent):
@@ -173,7 +173,8 @@ class FrelptTransBase(object):
             # NOTE: assumes self.loopctr exists
             # update variables in stmt with Part_Ref
             for variable, sub in variables.items():
-                if is_partref(variable.parent):
+                if is_partref(variable.parent) and self._is_var(variable.parent.subnodes[0]):
+                    print("VVV", variable, variable.parent)
                     parent = variable.parent.parent
                     subnode = variable.parent
                 else:

@@ -336,14 +336,20 @@ def promote_typedecl(respath):
         else:
             import pdb; pdb.set_trace()
 
-def add_loopctr_dummy_args(funcstmt, loopctr):
+def add_loopctr_dummy_args(funcstmt, loopctr, argsplit_index=0):
 
     # add dummy args
     if isinstance(funcstmt.wrapped, Subroutine_Stmt):
         prefix, name, dummy_args, binding_spec = funcstmt.subnodes
 
         if isinstance(dummy_args.wrapped, Dummy_Arg_List):
-            dummyargsnode = Dummy_Arg_List("frelpt_start, frelpt_stop, frelpt_step,"+dummy_args.wrapped.tofortran())
+            if argsplit_index == 0:
+                dummyargsnode = Dummy_Arg_List("frelpt_start, frelpt_stop, frelpt_step,"+dummy_args.wrapped.tofortran())
+            else:
+                prefix = [str(d) for d in dummy_args.subnodes[:argsplit_index]]
+                frelpt_args = ["frelpt_start", "frelpt_stop", "frelpt_step"]
+                postfix = [str(d) for d in dummy_args.subnodes[argsplit_index:]]
+                dummyargsnode = Dummy_Arg_List(", ".join(prefix+frelpt_args+postfix))
             dummyargs = ConcreteSyntaxNode(funcstmt, "expr", dummyargsnode)
             replace_subnode(funcstmt, 2, dummyargs)
 
@@ -431,3 +437,14 @@ def is_section_subscript_list(node):
 def is_name(node):
 
     return hasattr(node, "wrapped") and isinstance(node.wrapped, Name)
+
+
+def is_classtype(node):
+
+    tdecl = get_typedecl_parent(node)
+    tdeclspec = tdecl.subnodes[0]
+    return tdeclspec.subnodes[0] == "CLASS"
+
+def is_dummy_arg_list(node):
+
+    return hasattr(node, "wrapped") and isinstance(node.wrapped, Dummy_Arg_List)

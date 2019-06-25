@@ -101,6 +101,6 @@ class FrelptController(pyloco.Task):
             "trees" : _forward["trees"] ,
         }
 
-        argv = []
+        argv = ["-o", targs.outdir]
         output = FrelptOutput(parent)
         retval, _forward = output.run(argv, forward=forward)

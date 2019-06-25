@@ -11,7 +11,7 @@ class FrelptOutput(pyloco.Task):
 
         self.add_data_argument("trees", required=True, help="AST trees")
 
-        self.add_option_argument("-o", "--outdir", default=os.path.join(os.getcwd(), "frelpt"), help="output directory")
+        self.add_option_argument("-o", "--outdir", default=os.path.join(os.getcwd(), "frelpt-output"), help="output directory")
 
     def perform(self, targs):
 
@@ -20,7 +20,8 @@ class FrelptOutput(pyloco.Task):
 
         for path, tree in targs.trees.items():
             rpath, fname = os.path.split(os.path.relpath(path, start=cpath))
-            odir = os.path.join(os.path.join(cpath, rpath))
+
+            odir = os.path.join(os.path.join(targs.outdir, rpath))
 
             if not os.path.isdir(odir):
                 os.makedirs(odir) 

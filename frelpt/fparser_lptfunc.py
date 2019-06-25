@@ -14,7 +14,7 @@ from frelpt.fparser_argument import FparserArgument
 from frelpt.transbase import FrelptTransBase
 from frelpt.fparser_collect_promotion import CollectVars4Promotion
 from frelpt.fparser_util import (collect_entity_names, promote_typedecl, add_loopctr_dummy_args, add_loopctr_actual_args,
-        collect_funccall_stmt, is_actual_arg_spec_list, collect_names)
+        collect_funccall_stmt, is_actual_arg_spec_list, collect_names, is_classtype, is_dummy_arg_list)
 from frelpt.analyze import FrelptAnalyzer
 
 class LPTFunctionTranslator(pyloco.Task, FrelptTransBase):
@@ -71,10 +71,23 @@ class LPTFunctionTranslator(pyloco.Task, FrelptTransBase):
         funccalls = {}
         pvars = []
         all_pvars = []
+        argsplit_index = 0
+
+        # check if exists polymorphic arguments
+        if is_dummy_arg_list(self.funcname.parent.subnodes[2]):
+            for darg in self.funcname.parent.subnodes[2].subnodes:
+                res_darg = self.respaths[darg][-1]
+                if is_classtype(res_darg):
+                    argsplit_index += 1
+                else:
+                    break
+        else:
+            import pdb; pdb.set_trace()
 
         for dummy_arg in self.dummy_args:
             dummy_res_path = self.respaths[dummy_arg]
             res_name = dummy_res_path[-1]
+
             for res_path in self.invrespaths[res_name]:
                 org_name = res_path[0]
                 if org_name is not dummy_arg:
@@ -132,7 +145,7 @@ class LPTFunctionTranslator(pyloco.Task, FrelptTransBase):
         ########################
         # add dummy args
         ########################
-        add_loopctr_dummy_args(targs.funcname.parent, self.loopctr)
+        add_loopctr_dummy_args(targs.funcname.parent, self.loopctr, argsplit_index=argsplit_index)
 
         ##############
         # promote vars 
