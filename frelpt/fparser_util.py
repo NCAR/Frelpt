@@ -4,11 +4,11 @@ from __future__ import unicode_literals, print_function
 
 import copy
 
-from frelpt.node import ConcreteSyntaxNode
-
 from fparser.two.Fortran2003 import *
 from fparser.two.utils import *
 
+from fparser.common.readfortran import FortranStringReader
+from frelpt.node import ConcreteSyntaxNode, generate
 
 def _get_parent(node, ngreats=1):
 
@@ -25,6 +25,17 @@ def _get_parent(node, ngreats=1):
         p = p.parent if hasattr(p, "parent") else None
 
     return p
+
+def get_stmt_parent(node):
+
+    if node is None:
+        return None
+
+    elif isinstance(node.wrapped, StmtBase):
+        return node
+
+    elif hasattr(node, "parent"):
+        return get_stmt_parent(node.parent)
 
 def collect_nodes_by_class(node, cls):
 
@@ -72,6 +83,10 @@ def is_function_name(name):
         return True
 
 
+def is_procedure_name(name):
+
+    return is_function_name(name) or is_subroutine_name(name)
+
 def is_interface_name(name):
 
     p = _get_parent(name)
@@ -83,6 +98,16 @@ def is_interface_name(name):
 
     return False
 
+def is_dtype_name(name):
+
+    pp = _get_parent(name, 2)
+    ppp = _get_parent(name, 3)
+
+    if (pp and isinstance(pp.wrapped, Derived_Type_Stmt) and ppp.wrapped and
+            isinstance(ppp.wrapped, Derived_Type_Def)):
+        return True
+
+    return False
 
 def is_subprogram_name(name):
 
@@ -227,3 +252,182 @@ def collect_entity_names(node):
         return [node.subnodes[0]]    
     else:
         import pdb; pdb.set_trace()
+
+def get_typedecl_parent(node):
+
+    return get_parent_by_class(node,  Type_Declaration_Stmt)
+
+def collect_func_calls(node, arrvars, arr_actargs, respaths):
+    
+    func_calls = []
+    names = collect_names(node)
+
+    for name in names:
+        if name in respaths:
+            resname = respaths[name][-1]
+
+            if is_function_name(resname):
+                print("FUNCTION")
+                import pdb; pdb.set_trace()
+
+            elif is_subroutine_name(resname):
+                argnames = collect_names(name.parent.subnodes[1])
+                actargs = []
+                arr_actargs[name] = actargs
+
+                for argname in argnames:
+                    if argname in arrvars:
+                        actargs.append(argname)
+                        if name not in func_calls:
+                            func_calls.append(name)                
+
+            elif is_interface_name(resname):
+                print("INTERFACE")
+                import pdb; pdb.set_trace()
+        else:
+            raise Exception("'%s' is not resolved."%str(name))
+
+    return func_calls
+
+
+def promote_typedecl(respath):
+
+    typedecl = None
+    node = respath[-1]
+
+    while hasattr(node, "parent"):
+        node = node.parent
+        if node.wrapped.__class__ is Type_Declaration_Stmt:
+            typedecl = node
+            break
+
+    if typedecl:
+        type_spec, attr_specs, entity_decls = typedecl.subnodes
+
+        if isinstance(entity_decls.wrapped, Entity_Decl):
+            name, array_spec, char_length, init = entity_decls.subnodes
+
+            if array_spec:
+                if isinstance(array_spec.wrapped, Assumed_Shape_Spec):
+
+                    speclistnode = Assumed_Shape_Spec_List(":,"+array_spec.wrapped.tofortran())
+                    speclist = ConcreteSyntaxNode(entity_decls, "expr", speclistnode)
+                    replace_subnode(entity_decls, 1, speclist)
+
+                    if char_length or init:
+                        import pdb; pdb.set_trace()
+
+                elif isinstance(array_spec.wrapped, Assumed_Shape_Spec_List):
+                    import pdb; pdb.set_trace()
+
+
+                else:
+                    import pdb; pdb.set_trace()
+
+            elif attr_specs:
+                import pdb; pdb.set_trace()
+
+            else:
+                import pdb; pdb.set_trace()
+
+        elif isinstance(entity_decls.wrapped, Entity_Decl_List):
+            import pdb; pdb.set_trace()
+
+        else:
+            import pdb; pdb.set_trace()
+
+def add_loopctr_dummy_args(funcstmt, loopctr):
+
+    # add dummy args
+    if isinstance(funcstmt.wrapped, Subroutine_Stmt):
+        prefix, name, dummy_args, binding_spec = funcstmt.subnodes
+
+        if isinstance(dummy_args.wrapped, Dummy_Arg_List):
+            dummyargsnode = Dummy_Arg_List("frelpt_start, frelpt_stop, frelpt_step,"+dummy_args.wrapped.tofortran())
+            dummyargs = ConcreteSyntaxNode(funcstmt, "expr", dummyargsnode)
+            replace_subnode(funcstmt, 2, dummyargs)
+
+        else:
+            import pdb; pdb.set_trace()
+    else:
+        import pdb; pdb.set_trace()
+
+    # add typedecls for dummy args
+    specpart = collect_nodes_by_class(funcstmt.parent, Specification_Part)
+
+    if specpart:
+        intentnode = Type_Declaration_Stmt("INTEGER, INTENT(IN) :: frelpt_start, frelpt_stop, frelpt_step")
+        intent = ConcreteSyntaxNode(specpart[0], "stmt", intentnode)
+        append_subnode(specpart[0], intent)
+        dovarnode = Type_Declaration_Stmt("INTEGER :: frelpt_index")
+        dovar = ConcreteSyntaxNode(specpart[0], "stmt", dovarnode)
+        append_subnode(specpart[0], dovar)
+
+    else:
+        import pdb; pdb.set_trace()
+
+def add_loopctr_actual_args(callstmt, loopctr):
+
+    # add actual args
+    if isinstance(callstmt.wrapped, Call_Stmt):
+        proc, actual_args = callstmt.subnodes
+
+        if isinstance(actual_args.wrapped, Actual_Arg_Spec_List):
+            actualargsnode = Actual_Arg_Spec_List("frelpt_start, frelpt_stop, frelpt_step,"+actual_args.wrapped.tofortran())
+            actualargs = ConcreteSyntaxNode(callstmt, "expr", actualargsnode)
+            replace_subnode(callstmt, 1, actualargs)
+
+        else:
+            import pdb; pdb.set_trace()
+    else:
+        import pdb; pdb.set_trace()
+
+def wrap_stmt_with_doblock(stmt, loopctr):
+
+    doblock_str = """DO frelpt_index=frelpt_start, frelpt_stop, frelpt_step
+    %s
+END DO
+""" % str(stmt)
+
+    doblock_node = Do_Block(FortranStringReader(doblock_str))
+    doblock = generate(doblock_node)
+
+    parent = stmt.parent
+    idx_stmt = parent.subnodes.index(stmt)
+    replace_subnode(parent, idx_stmt, doblock)
+
+def collect_funccall_stmt(funccall):
+
+    while hasattr(funccall, "parent"):
+        funccall = funccall.parent
+        if funccall and isinstance(funccall.wrapped, (Call_Stmt, Function_Reference)):
+            return funccall
+
+def get_partref(parent, text):
+
+    return ConcreteSyntaxNode(parent, "expr", Part_Ref(text))
+
+
+def is_partref(node):
+
+    return hasattr(node, "wrapped") and isinstance(node.wrapped, Part_Ref)
+
+def is_entitydecl(node):
+
+    return hasattr(node, "wrapped") and isinstance(node.wrapped, Entity_Decl)
+
+def is_actual_arg_spec_list(node):
+
+    return hasattr(node, "wrapped") and isinstance(node.wrapped, Actual_Arg_Spec_List)
+
+def is_actual_arg_spec(node):
+
+    return hasattr(node, "wrapped") and isinstance(node.wrapped, Actual_Arg_Spec)
+
+def is_section_subscript_list(node):
+
+    return hasattr(node, "wrapped") and isinstance(node.wrapped, Section_Subscript_List)
+
+def is_name(node):
+
+    return hasattr(node, "wrapped") and isinstance(node.wrapped, Name)

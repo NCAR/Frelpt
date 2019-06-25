@@ -13,6 +13,8 @@ class ConcreteSyntaxNode(object):
 
         if isinstance(wrapped, (tuple, list)):
             self.wrap_map[id(wrapped)] = self
+        elif isinstance(self.wrapped, (str,)):
+            pass
         elif self.wrapped is not None:
             self.wrapped.pair = self
 
@@ -153,6 +155,7 @@ def generate(wrapped, parent=None):
 
     if subnodes:
         for subnode in subnodes:
+            if subnode.__class__.__name__ == "Assumed_Shape_Spec": import pdb; pdb.set_trace()
             node.subnodes.append(generate(subnode, node))
 
     return node

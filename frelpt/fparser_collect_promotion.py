@@ -14,6 +14,8 @@ from fparser.two.utils import *
 from frelpt.node import IntrinsicProcedureNode 
 from frelpt.fparser_util import collect_names, get_parent_by_class
 
+# TODO: pvar collected if it is associated with pre-found pvars
+
 class CollectVars4Promotion(pyloco.Task):
     """Collect variables to be promoted due to another promoted variable(s)
     """
@@ -49,9 +51,8 @@ class CollectVars4Promotion(pyloco.Task):
         self.respaths = targs.respaths
         self.invrespaths = targs.invrespaths
 
-        #import pdb; pdb.set_trace()
-        for node in targs.nodes:
-            self._collect(node, pvars, [], True)
+        #for node in targs.nodes:
+        #    self._collect(node, pvars, [], True)
 
         self.add_forward(pvars=pvars)
 
@@ -103,6 +104,21 @@ class CollectVars4Promotion(pyloco.Task):
     def collect_Actual_Arg_Spec_List(self, node, pvars, path, upward):
         pass
 
+    def collect_Add_Operand(self, node, pvars, path, upward):
+
+        if upward:
+            if path[-2] is node.subnodes[0]:
+                self._collect(node.subnodes[2], pvars, path, False)
+
+            elif path[-2] is node.subnodes[2]:
+                self._collect(node.subnodes[0], pvars, path, False)
+
+            self._collect(node.parent, pvars, path, True)
+
+        else:
+            self._collect(node.subnodes[0], pvars, path, False)
+            self._collect(node.subnodes[2], pvars, path, False)
+
     def collect_Assignment_Stmt(self, node, pvars, path, upward):
 
         if upward:
@@ -136,7 +152,10 @@ class CollectVars4Promotion(pyloco.Task):
 
     def collect_Name(self, node, pvars, path, upward):
 
+        self.log_debug("In Name '%s': %s, %s, %s" % (str(node), str(node not in self.orgnodes),
+                       str(node not in pvars), str(self._is_var(node))))
         if node not in self.orgnodes and node not in pvars and self._is_var(node):
+            self.log_debug("Collected '%s'" % str(node))
             pvars.append(node)
 
         if upward:

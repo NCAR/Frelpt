@@ -10,14 +10,14 @@ from frelpt.node import ConcreteSyntaxNode
 from fparser.two.Fortran2003 import *
 from fparser.two.utils import *
 
+from frelpt.transbase import FrelptTransBase
 from frelpt.fparser_argument import FparserArgument
 from frelpt.fparser_lptfunc import LPTFunctionTranslator
 from frelpt.fparser_collect_promotion import CollectVars4Promotion
 from frelpt.fparser_util import (collect_names, get_parent_by_class, get_entity_decl_by_name,
-                get_attr_spec, collect_nodes_by_class,
+                get_attr_spec, collect_nodes_by_class, collect_func_calls, promote_typedecl, collect_funccall_stmt,
                 replace_dovar_with_section_subscript, append_subnode,
                 remove_subnode, insert_subnode, is_descendant)
-from frelpt.transutil import collect_func_calls, promote_typedecl, collect_funccall_stmt
 
 # collect start, stop, and step parameters
 def collect_do_loopcontrol(node, bag, depth):
@@ -40,7 +40,7 @@ def collect_do_loopcontrol(node, bag, depth):
         return True
 
 # pushdown originating source file
-class FrelptTranslator(pyloco.Task):
+class FrelptTranslator(pyloco.Task, FrelptTransBase):
 
     # register command line arguments and forward
     def __init__(self, parent):
@@ -356,26 +356,27 @@ class FrelptTranslator(pyloco.Task):
         else:
             import pdb; pdb.set_trace()
 
-    def promote_vars(self, pvars, arrvars, funccalls, globalvars, ptypedecls):
-
-        # TODO: actual promotion happens here
-        #import pdb; pdb.set_trace() 
-
-        # collect typedecls to be promoted
-        for pvar in pvars:
-            ptypedecl = self.get_promote_typedecl(pvar)
-            if ptypedecl not in ptypedecls:
-                ptypedecls.append(ptypedecl)
-
-        for ptypedecl in ptypedecls:
-            # collect vars whose typedecl is ptypedecl
-            pvars = self.collect_pvars_from_typedecl(ptypedecl)
-            self.promote_vars(pvars, arrvars, funccalls, globalvars, ptypedecls)
-
-
-        # if pvar is global variables, just keep it for later processing after finishing all local promotions
-        # need to collect function calls
-
-    def get_promote_typedecl(self, node):
-        import pdb; pdb.set_trace()
-
+#    def promote_vars(self, pvars, arrvars, funccalls, globalvars, ptypedecls):
+#
+#        # TODO: actual promotion happens here
+#        for pvar in pvars:
+#            import pdb; pdb.set_trace() 
+#
+#        # collect typedecls to be promoted
+#        for pvar in pvars:
+#            ptypedecl = self.get_promote_typedecl(pvar)
+#            if ptypedecl not in ptypedecls:
+#                ptypedecls.append(ptypedecl)
+#
+#        for ptypedecl in ptypedecls:
+#            # collect vars whose typedecl is ptypedecl
+#            pvars = self.collect_pvars_from_typedecl(ptypedecl)
+#            self.promote_vars(pvars, arrvars, funccalls, globalvars, ptypedecls)
+#
+#
+#        # if pvar is global variables, just keep it for later processing after finishing all local promotions
+#        # need to collect function calls
+#
+#    def get_promote_typedecl(self, node):
+#        import pdb; pdb.set_trace()
+#

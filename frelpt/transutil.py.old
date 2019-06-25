@@ -4,11 +4,13 @@ from __future__ import unicode_literals, print_function
 
 from fparser.two.Fortran2003 import *
 from fparser.two.utils import *
+from fparser.common.readfortran import FortranStringReader
 
 from frelpt.fparser_util import (collect_names, is_interface_name, is_function_name,
     is_subroutine_name, insert_subnode, replace_subnode, collect_nodes_by_class,
     append_subnode)
-from frelpt.node import ConcreteSyntaxNode
+from frelpt.node import ConcreteSyntaxNode, generate
+
 
 def collect_func_calls(node, arrvars, arr_actargs, respaths):
     
@@ -135,11 +137,23 @@ def add_actual_args(callstmt, loopctr):
     else:
         import pdb; pdb.set_trace()
 
+def wrap_stmt_with_doblock(stmt, loopctr):
+
+    doblock_str = """DO frelpt_index=frelpt_start, frelpt_stop, frelpt_step
+    %s
+END DO
+""" % str(stmt)
+
+    doblock_node = Do_Block(FortranStringReader(doblock_str))
+    doblock = generate(doblock_node)
+
+    parent = stmt.parent
+    idx_stmt = parent.subnodes.index(stmt)
+    replace_subnode(parent, idx_stmt, doblock)
+
 def collect_funccall_stmt(funccall):
 
     while hasattr(funccall, "parent"):
         funccall = funccall.parent
-        if isinstance(funccall.wrapped, (Call_Stmt, Function_Reference)):
+        if funccall and isinstance(funccall.wrapped, (Call_Stmt, Function_Reference)):
             return funccall
-    
-    import pdb ;pdb.set_trace()

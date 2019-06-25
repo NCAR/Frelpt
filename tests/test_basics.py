@@ -34,7 +34,7 @@ class BasicTests(unittest.TestCase):
             "--debug",
         ])
  
-
+        import pdb; pdb.set_trace()
         self.assertEqual(retval, 0) 
 
 test_classes = (BasicTests,)

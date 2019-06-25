@@ -10,12 +10,14 @@ import pyloco
 from fparser.two.Fortran2003 import *
 from fparser.two.utils import *
 
-from frelpt.transutil import promote_typedecl, add_dummy_args, add_actual_args
+from frelpt.fparser_argument import FparserArgument
+from frelpt.transbase import FrelptTransBase
 from frelpt.fparser_collect_promotion import CollectVars4Promotion
-from frelpt.fparser_util import collect_entity_names
+from frelpt.fparser_util import (collect_entity_names, promote_typedecl, add_loopctr_dummy_args, add_loopctr_actual_args,
+        collect_funccall_stmt, is_actual_arg_spec_list, collect_names)
 from frelpt.analyze import FrelptAnalyzer
 
-class LPTFunctionTranslator(pyloco.Task):
+class LPTFunctionTranslator(pyloco.Task, FrelptTransBase):
 
     def __init__(self, parent):
 
@@ -66,8 +68,9 @@ class LPTFunctionTranslator(pyloco.Task):
         self.respaths.update(_forward["respaths"])
         self.invrespaths.update(_forward["invrespaths"])
 
-        funccalls = []
-        pvars = {}
+        funccalls = {}
+        pvars = []
+        all_pvars = []
 
         for dummy_arg in self.dummy_args:
             dummy_res_path = self.respaths[dummy_arg]
@@ -79,9 +82,9 @@ class LPTFunctionTranslator(pyloco.Task):
                     ##################################################
                     # collect function calls that propagates promotion
                     ##################################################
-                    for funccall in self.collect_func_calls(org_name):
+                    for funccall, actual_args in self._collect_func_calls(org_name):
                         if funccall not in funccalls:
-                            funccalls.append(funccall)
+                            funccalls[funccall] = actual_args
 
                     ##############################
                     # collect pvars to be promoted
@@ -94,12 +97,32 @@ class LPTFunctionTranslator(pyloco.Task):
                         "invrespaths": self.invrespaths,
                     }
                     _, _pfwd = pvarcollector.run(["--log", "pvarcollector"], forward=pvarcollector_forward)
-                    if org_name in pvars:
-                        for pvar in _pfwd["pvars"]:
-                            if pvar not in pvars[org_name]:
-                                pvars[org_name].append(pvar)
-                    else:
-                        pvars[org_name] = _pfwd["pvars"]
+
+                    #pvars.extend(_pfwd["pvars"])
+
+                    #new_pvars = []
+
+                    # collection function calls from to-be-promoted vars
+                    for pvar in _pfwd["pvars"]:
+                        if collect_funccall_stmt(pvar) is None:
+                            if pvar not in pvars:
+                                pvars.append(pvar)
+                        elif pvar not in all_pvars:
+                            all_vars.append(pvar)
+                    #        new_pvars.append(pvar)
+
+                    if org_name not in pvars and collect_funccall_stmt(org_name) is None:
+                        pvars.append(org_name)
+
+                    if org_name not in all_pvars:
+                        all_pvars.append(org_name)
+
+                    #if org_name in pvars:
+                    #    pvars[org_name] = []
+
+                    #for new_pvar in new_pvars:
+                    #    if new_pvars is not org_name and new_pvar not in pvars[org_name]:
+                    #        pvars[org_name].append(new_pvars)
 
             ########################
             # promote typedecl stmts
@@ -109,27 +132,52 @@ class LPTFunctionTranslator(pyloco.Task):
         ########################
         # add dummy args
         ########################
-        add_dummy_args(targs.funcname.parent, self.loopctr)
+        add_loopctr_dummy_args(targs.funcname.parent, self.loopctr)
 
         ##############
         # promote vars 
         ##############
         #if pvars: import pdb; pdb.set_trace()
-        #self.promote_vars(target_vars, arrvars, funccalls, global_vars, ptypedecls)
+        arrvars = []
+        global_vars = []
+        ptypedecls = {} 
+        self.promote_vars(pvars, arrvars, funccalls, global_vars, ptypedecls)
 
         ###################
         # promote funccalls
         ###################
-        for funccall in funccalls:
-            add_actual_args(funccall.parent, self.loopctr)
-        #    gvars = self.promote_func_call(funccall, arr_actargs, global_vars)
+        for funccall, actual_args in funccalls.items():
+            org_funccall = funccall
+
+            arg_indices = {}
+            if is_actual_arg_spec_list(actual_args):
+                for idx, arg in enumerate(actual_args.subnodes):
+                    anames = collect_names(arg)
+                    if any((n in all_pvars) for n in anames):
+                        arg_indices[idx] = arg
+            else:
+                import pdb; pdb.set_trace()
+
+            if "%" in funccall.subnodes:
+                prefs = []
+
+                for n1, n2 in zip(funccall.subnodes[1:-1], funccall.subnodes[2:]):
+                    if n1 == "%":
+                        prefs.append(n2)
+
+                self.process_dataref(funccall.subnodes[0], prefs, actual_args, arg_indices, global_vars)
+
+            else:
+                self.promote_func_call(funccall, actual_args, arg_indices, global_vars)
+
+            add_loopctr_actual_args(org_funccall.parent, self.loopctr)
 
         self.add_forward(trees=self.trees)
         self.add_forward(modules=self.modules)
         self.add_forward(respaths=self.respaths)
         self.add_forward(invrespaths=self.invrespaths)
 
-    def collect_func_calls(self, node):
+    def _collect_func_calls(self, node):
 
         nodecls = node.wrapped.__class__
         clsname = nodecls.__name__
@@ -140,12 +188,12 @@ class LPTFunctionTranslator(pyloco.Task):
         if nodecls in (Actual_Arg_Spec, Actual_Arg_Spec_List):
 
             if isinstance(node.parent.wrapped, Call_Stmt):
-                return [node.parent.subnodes[0]]
+                return [(node.parent.subnodes[0], node)]
 
             else:
                 import pdb; pdb.set_trace()
 
         elif hasattr(node, "parent"):
-            return self.collect_func_calls(node.parent)
+            return self._collect_func_calls(node.parent)
 
         return []

@@ -1608,7 +1608,11 @@ class Searcher(pyloco.Task):
 
         iname, mylist, dcolon, Binding_Name(line), pname
         """
-        self._search_subnodes(node, ids, rtypes, excludes=[2,3])
+
+        if node.subnodes[4] is None:
+            self._search_subnodes(node, ids, rtypes, excludes=[2])
+        else:
+            self._search_subnodes(node, ids, rtypes, excludes=[2,3])
 
     def search_Specification_Part(self, node, ids, rtypes):
 

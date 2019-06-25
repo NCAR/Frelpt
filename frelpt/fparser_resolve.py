@@ -330,6 +330,7 @@ class Resolver(pyloco.Task):
         if path[0].wrapped.string.lower() in Intrinsic_Procedures:
             resnode = IntrinsicProcedureNode(None, ["expr"], path[0])
             path.append(resnode)
+            self.log_debug("Resolved '%s' by an intrinsic" % str(path[0]))
             return True
 
     def resolve_Add_Operand(self, node, res, path, pending, upward):
@@ -397,6 +398,7 @@ class Resolver(pyloco.Task):
         else:
             name, array_spec, char_length, init = node.subnodes
             if self._resolve(name, res, path, pending, upward):
+                self.log_debug("Resolved '%s' at Entity_Decl" % str(path[0]))
                 self._search_resolve(array_spec, char_length, init)
                 return True
 
@@ -434,6 +436,7 @@ class Resolver(pyloco.Task):
 
         if upward:
             if self._subnode_resolve(node, res, path, pending):
+                self.log_debug("Resolved '%s' in Main_Program" % str(path[0]))
                 return True
             return self._resolve(node.parent, res, path, pending, upward)
 
@@ -454,6 +457,7 @@ class Resolver(pyloco.Task):
         if upward:
             if not self._subnode_resolve(node, res, path, pending):
                 return self._resolve(node.parent, res, path, pending, upward)
+            self.log_debug("Resolved '%s' in Module" % str(path[0]))
             return True
         else:
             return self._subnode_resolve(node, res, path, pending)
@@ -511,6 +515,7 @@ class Resolver(pyloco.Task):
         if upward:
             # resolve with intrinsic names
             if self._resolve_intrinsics(node, res, path, pending, upward):
+                self.log_debug("Resolved '%s' by an intrinsic" % str(path[0]))
                 return True
             elif self._resolve_implicit_rules(node, res, path, pending, upward):
                 import pdb; pdb.set_trace()
@@ -526,7 +531,11 @@ class Resolver(pyloco.Task):
 
     def resolve_Specific_Binding(self, node, res, path, pending, upward):
 
-        import pdb; pdb.set_trace()
+        if upward:
+            return self._resolve(node.parent, res, path, pending, upward)
+
+        else:
+            import pdb; pdb.set_trace()
 
     def resolve_Subroutine_Stmt(self, node, res, path, pending, upward):
         """
@@ -551,6 +560,7 @@ class Resolver(pyloco.Task):
         if upward:
             if not self._subnode_resolve(node, res, path, pending):
                 return self._resolve(node.parent, res, path, pending, upward)
+            self.log_debug("Resolved '%s' in Subroutine_Subprogram" % str(path[0]))
             return True
         else:
             return self._subnode_resolve(node, res, path, pending)
@@ -567,6 +577,7 @@ class Resolver(pyloco.Task):
         if upward:
             if not self._subnode_resolve(node, res, path, pending):
                 return self._resolve(node.parent, res, path, pending, upward)
+            self.log_debug("Resolved '%s' in Specification_Part" % str(path[0]))
             return True
         else:
             return self._subnode_resolve(node, res, path, pending)
@@ -591,6 +602,7 @@ class Resolver(pyloco.Task):
             type_spec, attr_specs, entity_decls = node.subnodes
             if self._resolve(entity_decls, res, path, pending, upward):
                 self._search_resolve(type_spec, attr_specs)
+                self.log_debug("Resolved '%s' in Type_Declaration_Stmt" % str(path[0]))
                 return True
 
     def resolve_Type_Name(self, node, res, path, pending, upward):
