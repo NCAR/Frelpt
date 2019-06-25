@@ -105,7 +105,7 @@ class FrelptAnalyzer(pyloco.Task):
             topnode = node.topnode()
             filepath = topnode.filepath
             if filepath not in self.trees:
-                trees[filepath] = topnode
+                self.trees[filepath] = topnode
 
             searcher_forward = {"node" : node}
             _, _sfwd = searcher.run(["--log", "searcher"], forward=searcher_forward)

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import glob
 
 import pyloco
 
@@ -23,10 +24,32 @@ class AppBuildAnalyzer(pyloco.Task):
 
         # for dev on my Macpro only
         macros, includes = {}, {}
-        apppath = "/Users/youngsun/repos/github/Frelpt/tests/sca/complex3/org"
-        for fname in ("main.f90", "mo_column.f90", "mo_column_extra.f90"):
-            macros["%s/%s"%(apppath, fname)] = {} 
-            includes["%s/%s"%(apppath, fname)] = [ apppath ]
+
+        for test in ["complex1", "complex2", "complex3"]:
+            apppath = "/Users/youngsun/repos/github/Frelpt/tests/sca/%s/org" % test
+            for fname in ("main.f90", "mo_column.f90", "mo_column_extra.f90"):
+                macros["%s/%s"%(apppath, fname)] = {} 
+                includes["%s/%s"%(apppath, fname)] = [ apppath ]
+
+        #claw_sca_tests = "/Users/youngsun/repos/github/claw-compiler/test/claw/sca"
+        claw_sca_test = os.path.realpath(os.path.join(targs.outdir, "..", "org"))
+
+        for fname in ("main.f90", "mo_column.f90"):
+            macros["%s/%s"%(claw_sca_test, fname)] = {} 
+            includes["%s/%s"%(claw_sca_test, fname)] = [ claw_sca_test ]
+
+        if os.path.isfile(os.path.join(claw_sca_test, "mo_column_extra.f90")):
+            macros["%s/mo_column_extra.f90"%claw_sca_test] = {} 
+            includes["%s/mo_column_extra.f90"%claw_sca_test] = [ claw_sca_test ]
+
+#        for test in glob.glob(claw_sca_tests + "/sca*"):
+#            for fname in ("main.f90", "mo_column.f90"):
+#                macros["%s/%s"%(test, fname)] = {} 
+#                includes["%s/%s"%(test, fname)] = [ test ]
+#
+#            if os.path.isfile(os.path.join(test, "mo_column_extra.f90")):
+#                macros["%s/mo_column_extra.f90"%test] = {} 
+#                includes["%s/mo_column_extra.f90"%test] = [ test ]
 
         # NOTE: all paths should be realpath and abspath
         self.add_forward(macros=macros, includes=includes)

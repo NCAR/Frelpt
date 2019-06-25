@@ -1488,6 +1488,14 @@ class Searcher(pyloco.Task):
         self._search(node.subnodes[0], ids, rtypes)
         self._search(node.subnodes[1], ids, rtypes)
 
+    def search_Function_Stmt(self, node, ids, rtypes):
+
+        self._search_subnodes(node, ids, rtypes, excludes=[1])
+
+    def search_Function_Subprogram(self, node, ids, rtypes):
+
+        self._search_subnodes(node, ids, rtypes)
+
     def search_Implicit_Part(self, node, ids, rtypes):
 
         self._search_subnodes(node, ids, rtypes)
@@ -1531,6 +1539,9 @@ class Searcher(pyloco.Task):
  
         self._search(node.subnodes[0], ids, rtypes)
         self._search(node.subnodes[2], ids, rtypes)
+
+    def search_Logical_Literal_Constant(self, node, ids, rtypes):
+        pass
 
     def search_Loop_Control(self, node, ids, rtypes):
         """
@@ -1618,6 +1629,10 @@ class Searcher(pyloco.Task):
 
         self._search_subnodes(node, ids, rtypes)
 
+    def search_Structure_Constructor_2(self, node, ids, rtypes):
+
+        self._search(node.subnodes[1], ids, rtypes)
+
     def search_Subroutine_Stmt(self, node, ids, rtypes):
 
         self._search_subnodes(node, ids, rtypes, excludes=[1])
@@ -1632,6 +1647,10 @@ class Searcher(pyloco.Task):
         """
 
         self._search_subnodes(node, ids, rtypes)
+
+    def search_Suffix(self, node, ids, rtypes):
+
+        self._search(node.subnodes[0], ids, rtypes)
 
     def search_Type_Bound_Procedure_Part(self, node, ids, rtypes):
 

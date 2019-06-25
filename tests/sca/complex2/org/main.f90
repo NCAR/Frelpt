@@ -6,7 +6,7 @@
 !
 
 PROGRAM test_abstraction16
-  USE mo_column_extra, ONLY: compute_one
+  USE mo_column_extra, ONLY: compute_one, compute_two
   REAL, DIMENSION(20,60) :: q, t  ! Fields as declared in the whole model
   INTEGER :: nproma, nz           ! Size of array fields
   INTEGER :: p                    ! Loop index
@@ -20,8 +20,10 @@ PROGRAM test_abstraction16
   END DO
 
   !$claw parallelize forward create update
+  !$frelpt pushdown
   DO p = 1, nproma
     CALL compute_one(nz, q(p,:), t(p,:))
+    CALL compute_two(nz, q(p,:), t(p,:))
   END DO
   
   PRINT*,SUM(q)

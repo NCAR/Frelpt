@@ -393,7 +393,7 @@ class Resolver(pyloco.Task):
         """
 
         if upward:
-            import pdb; pdb.set_trace()
+            return self._resolve(node.parent, res, path, pending, upward)
 
         else:
             name, array_spec, char_length, init = node.subnodes
@@ -404,7 +404,38 @@ class Resolver(pyloco.Task):
 
     def resolve_Execution_Part(self, node, res, path, pending, upward):
         if upward:
+            if not self._subnode_resolve(node, res, path, pending):
+                return self._resolve(node.parent, res, path, pending, upward)
+            self.log_debug("Resolved '%s' in Execution_Part" % str(path[0]))
+            return True
+
+        else:
+            return self._subnode_resolve(node, res, path, pending)
+
+    def resolve_Explicit_Shape_Spec(self, node, res, path, pending, upward):
+        if upward:
             return self._resolve(node.parent, res, path, pending, upward)
+
+    def resolve_Function_Stmt(self, node, res, path, pending, upward):
+        """
+        <function-stmt> = [ <prefix> ] FUNCTION <function-name>
+                          ( [ <dummy-arg-name-list> ] ) [ <suffix> ]
+        """
+
+        if upward:
+            return self._resolve(node.parent, res, path, pending, upward)
+        elif Function_Stmt in res:
+            prefix, name, dummy_args, suffix = node.subnodes
+            return self._resolve(name, res, path, pending, upward)
+
+    def resolve_Function_Subprogram(self, node, res, path, pending, upward):
+        if upward:
+            if not self._subnode_resolve(node, res, path, pending):
+                return self._resolve(node.parent, res, path, pending, upward)
+            self.log_debug("Resolved '%s' in Function_Subprogram" % str(path[0]))
+            return True
+        else:
+            return self._subnode_resolve(node, res, path, pending)
 
     def resolve_Implicit_Stmt(self, node, res, path, pending, upward):
 
@@ -475,7 +506,15 @@ class Resolver(pyloco.Task):
                                        <module-subprogram>
                                        [ <module-subprogram> ]...
         """
-        return self._bypass(node, res, path, pending, upward)
+        #return self._bypass(node, res, path, pending, upward)
+
+        if upward:
+            if not self._subnode_resolve(node, res, path, pending):
+                return self._resolve(node.parent, res, path, pending, upward)
+            self.log_debug("Resolved '%s' in Module_Subprogram_Part" % str(path[0]))
+            return True
+        else:
+            return self._subnode_resolve(node, res, path, pending)
 
     def resolve_Name(self, node, res, path, pending, upward):
         if upward: # start resolve
@@ -493,6 +532,9 @@ class Resolver(pyloco.Task):
         """
         if upward:
             return self._resolve(node.parent, res, path, pending, upward)
+
+    def resolve_Print_Stmt(self, node, res, path, pending, upward):
+        pass
 
     def resolve_Procedure_Designator(self, node, res, path, pending, upward):
 
@@ -537,6 +579,23 @@ class Resolver(pyloco.Task):
         else:
             import pdb; pdb.set_trace()
 
+    def resolve_Specification_Part(self, node, res, path, pending, upward):
+        # TODO: resolve with typedecl first? than use?
+        # typedecl .. -> use -> implicit
+        #if upward:
+        #    return self._resolve(node.parent, res, path, pending, upward)
+        #else:
+        #    return self._subnode_resolve(node, res, path, pending)
+        #return self._bypass(node, res, path, pending, upward)
+
+        if upward:
+            if not self._subnode_resolve(node, res, path, pending):
+                return self._resolve(node.parent, res, path, pending, upward)
+            self.log_debug("Resolved '%s' in Specification_Part" % str(path[0]))
+            return True
+        else:
+            return self._subnode_resolve(node, res, path, pending)
+
     def resolve_Subroutine_Stmt(self, node, res, path, pending, upward):
         """
         <subroutine-stmt>
@@ -565,22 +624,9 @@ class Resolver(pyloco.Task):
         else:
             return self._subnode_resolve(node, res, path, pending)
 
-    def resolve_Specification_Part(self, node, res, path, pending, upward):
-        # TODO: resolve with typedecl first? than use?
-        # typedecl .. -> use -> implicit
-        #if upward:
-        #    return self._resolve(node.parent, res, path, pending, upward)
-        #else:
-        #    return self._subnode_resolve(node, res, path, pending)
-        #return self._bypass(node, res, path, pending, upward)
-
+    def resolve_Suffix(self, node, res, path, pending, upward):
         if upward:
-            if not self._subnode_resolve(node, res, path, pending):
-                return self._resolve(node.parent, res, path, pending, upward)
-            self.log_debug("Resolved '%s' in Specification_Part" % str(path[0]))
-            return True
-        else:
-            return self._subnode_resolve(node, res, path, pending)
+            return self._resolve(node.parent, res, path, pending, upward)
 
     def resolve_Tuple(self, node, res, path, pending, upward):
         return self._bypass(node, res, path, pending, upward)
