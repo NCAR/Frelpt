@@ -19,6 +19,7 @@ class BasicTests(unittest.TestCase):
 
     def setUp(self):
         self.tempdir = tempfile.mkdtemp()
+        shutil.copy(os.path.join(_complex3, "Makefile"), self.tempdir)
 
     def tearDown(self):
         shutil.rmtree(self.tempdir)
@@ -34,8 +35,14 @@ class BasicTests(unittest.TestCase):
             "--debug",
         ])
  
-        import pdb; pdb.set_trace()
-        self.assertEqual(retval, 0) 
+        out1 = pyloco.system("make", cwd=_complex3)
+        out2 = pyloco.system("make", cwd=self.tempdir)
+
+        self.assertEqual(out1[0], 0) 
+        self.assertEqual(out2[0], 0) 
+        self.assertEqual(out1[1].split()[-1], '38042808.0') 
+        self.assertEqual(out2[1].split()[-1], '38042808.0') 
+
 
 test_classes = (BasicTests,)
 

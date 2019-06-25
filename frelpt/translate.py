@@ -165,11 +165,11 @@ class FrelptTranslator(pyloco.Task, FrelptTransBase):
         idxdo = pnode.subnodes.index(targs.donode)
 
         #import pdb; pdb.set_trace()
-        for funcstmt in funcstmts:
+        for fidx, funcstmt in enumerate(funcstmts):
             pfunc = funcstmt.parent
             idx = pfunc.subnodes.index(funcstmt)
             f = remove_subnode(pfunc, idx)
-            insert_subnode(pnode, idxdo, f)
+            insert_subnode(pnode, idxdo+fidx, f)
 
         #################
         # promote arrvars
@@ -182,7 +182,7 @@ class FrelptTranslator(pyloco.Task, FrelptTransBase):
         # promote funccalls
         ###################
         for funccall in funccalls:
-            gvars = self.promote_func_call(funccall, arr_actargs, global_vars)
+            self.promote_func_call(funccall, arr_actargs, global_vars)
 
         ########################
         # promote typedecl stmts

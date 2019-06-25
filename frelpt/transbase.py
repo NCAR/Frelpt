@@ -174,7 +174,6 @@ class FrelptTransBase(object):
             # update variables in stmt with Part_Ref
             for variable, sub in variables.items():
                 if is_partref(variable.parent) and self._is_var(variable.parent.subnodes[0]):
-                    print("VVV", variable, variable.parent)
                     parent = variable.parent.parent
                     subnode = variable.parent
                 else:
