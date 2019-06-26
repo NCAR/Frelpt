@@ -1396,7 +1396,7 @@ class Searcher(pyloco.Task):
 
     def search_Access_Stmt(self, node, ids, rtypes):
 
-        import pdb; pdb.set_trace()
+        self._search(node.subnodes[1], ids, rtypes)
 
     def search_Add_Operand(self, node, ids, rtypes):
 
@@ -1509,11 +1509,11 @@ class Searcher(pyloco.Task):
 
     def search_If_Construct(self, node, ids, rtypes):
 
-        import pdb; pdb.set_trace()
+        self._search_subnodes(node, ids, rtypes)
 
     def search_If_Stmt(self, node, ids, rtypes):
 
-        import pdb; pdb.set_trace()
+        self._search_subnodes(node, ids, rtypes)
 
     def search_Implicit_Part(self, node, ids, rtypes):
 
@@ -1529,7 +1529,7 @@ class Searcher(pyloco.Task):
 
     def search_Internal_Subprogram_Part(self, node, ids, rtypes):
 
-        import pdb; pdb.set_trace()
+        self._search(node.subnodes[1], ids, rtypes)
 
     def search_Intrinsic_Type_Spec(self, node, ids, rtypes):
         """
@@ -1597,7 +1597,8 @@ class Searcher(pyloco.Task):
 
     def search_Mult_Operand(self, node, ids, rtypes):
 
-        import pdb; pdb.set_trace()
+        self._search(node.subnodes[0], ids, rtypes)
+        self._search(node.subnodes[2], ids, rtypes)
 
     def search_Nonlabel_Do_Stmt(self, node, ids, rtypes):
         """
@@ -1621,11 +1622,11 @@ class Searcher(pyloco.Task):
 
     def search_Pointer_Assignment_Stmt(self, node, ids, rtypes):
 
-        import pdb; pdb.set_trace()
+        self._search_subnodes(node, ids, rtypes)
 
     def search_Prefix_Spec(self, node, ids, rtypes):
 
-        import pdb; pdb.set_trace()
+        self._search_subnodes(node, ids, rtypes)
 
     def search_Procedure_Designator(self, node, ids, rtypes):
         """

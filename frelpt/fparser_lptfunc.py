@@ -181,7 +181,8 @@ class LPTFunctionTranslator(pyloco.Task, FrelptTransBase):
                 self.process_dataref(funccall.subnodes[0], prefs, actual_args, arg_indices, global_vars)
 
             else:
-                self.promote_func_call(funccall, actual_args, arg_indices, global_vars)
+                callee = self.respaths[funccall][-1]
+                self.promote_func_call(callee, actual_args, arg_indices, global_vars)
 
             add_loopctr_actual_args(org_funccall.parent, self.loopctr)
 

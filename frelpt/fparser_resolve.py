@@ -333,6 +333,11 @@ class Resolver(pyloco.Task):
             self.log_debug("Resolved '%s' by an intrinsic" % str(path[0]))
             return True
 
+    def resolve_Access_Stmt(self, node, res, path, pending, upward):
+
+        if upward:
+            return self._resolve(node.parent, res, path, pending, upward)
+
     def resolve_Add_Operand(self, node, res, path, pending, upward):
 
         return self._bypass(node, res, path, pending, upward)
@@ -530,6 +535,11 @@ class Resolver(pyloco.Task):
         """
         <part-ref> = <part-name> [ ( <section-subscript-list> ) ]
         """
+        if upward:
+            return self._resolve(node.parent, res, path, pending, upward)
+
+    def resolve_Pointer_Assignment_Stmt(self, node, res, path, pending, upward):
+
         if upward:
             return self._resolve(node.parent, res, path, pending, upward)
 

@@ -108,3 +108,5 @@ temp
 *.lpt
 *.mod
 *.exe
+
+*.out

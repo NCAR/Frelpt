@@ -4,6 +4,7 @@ import unittest
 import tempfile
 import shutil
 import glob
+import traceback
 
 import pyloco
 import frelpt
@@ -40,10 +41,15 @@ class ClawSCATests(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tempdir)
 
-    def ttest_clawsca(self):
+    def test_clawsca(self):
 
         for test in glob.glob(claw_sca_tests + "/sca*"):
             last = os.path.basename(os.path.normpath(test))
+
+            if last in ("sca2",):
+                continue
+
+            print("FOUND : ", last)
 
             orgdir = os.path.join(self.tempdir, last, "org")
             lptdir = os.path.join(self.tempdir, last, "lpt")
@@ -56,6 +62,7 @@ class ClawSCATests(unittest.TestCase):
             orgmain = os.path.join(orgdir, "main.f90")
 
             if not os.path.exists(target):
+                print("Test target for " + last + " does not exist.")
                 continue
 
             with open(target, "r") as fr:
@@ -78,13 +85,43 @@ class ClawSCATests(unittest.TestCase):
             with open(os.path.join(lptdir, "Makefile"), "w") as f:
                 f.write(makefile)
 
-            
+
+            # FOR DEBUG: pass pyloco finished test cases
+#            if last in ("sca21", "sca19", "sca26"):
+#                continue
+#
+#            print("BEGIN : ", last)
+#
+#            retval, forward = pyloco.perform(frelpt.FrelptTask, argv=[
+#                orgmain,
+#                "make clean",
+#                "make org",
+#                "--outdir", lptdir,
+#                "--log", "basictests",
+#                "--debug",
+#            ])
+#     
+#            print("FINISHED : ", last)
+#
+#            out1 = pyloco.system("make org", cwd=orgdir)
+#            print("ORG EXECUTED : ", last)
+#
+#            out2 = pyloco.system("make org", cwd=lptdir)
+#            print("LPT EXECUTED : ", last)
+#
+#            #import pdb; pdb.set_trace()
+#            self.assertEqual(out1[0], 0) 
+#            print("ORG RETURNED NO-ERROR : ", last)
+#
+#            self.assertEqual(out2[0], 0) 
+#            print("LPT RETURNED NO-ERROR : ", last)
+#
+#            self.assertEqual(out1[1].split()[-1], out2[1].split()[-1])
+#            print("PASSED : ", last)
+           
             with self.subTest(sca=last):
 
-                if last in ("sca2", ):
-                    continue
-
-                print("TEST : ", last)
+                print("BEGIN : ", last)
 
                 retval, forward = pyloco.perform(frelpt.FrelptTask, argv=[
                     orgmain,
@@ -95,14 +132,23 @@ class ClawSCATests(unittest.TestCase):
                     "--debug",
                 ])
          
+                print("FINISHED : ", last)
+
                 out1 = pyloco.system("make org", cwd=orgdir)
+                print("ORG EXECUTED : ", last)
+
                 out2 = pyloco.system("make org", cwd=lptdir)
+                print("LPT EXECUTED : ", last)
 
                 #import pdb; pdb.set_trace()
                 self.assertEqual(out1[0], 0) 
-                self.assertEqual(out2[0], 0) 
-                self.assertEqual(out1[1].split()[-1], out2[1].split()[-1])
+                print("ORG RETURNED NO-ERROR : ", last)
 
+                self.assertEqual(out2[0], 0) 
+                print("LPT RETURNED NO-ERROR : ", last)
+
+                self.assertEqual(out1[1].split()[-1], out2[1].split()[-1])
+                print("PASSED : ", last)
             #break
 
 test_classes = (ClawSCATests,)
