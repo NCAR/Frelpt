@@ -4,7 +4,8 @@ from __future__ import unicode_literals, print_function
 
 from frelpt.fparser_util import (get_stmt_parent, collect_names, get_typedecl_parent,
         wrap_stmt_with_doblock, get_partref, replace_subnode, is_partref, is_entitydecl,
-        is_dtype_name, is_procedure_name, is_section_subscript_list, is_name)
+        is_dtype_name, is_procedure_name, is_section_subscript_list, is_name,
+        is_structure_constructor_2)
 
 # pushdown originating source file
 class FrelptTransBase(object):
@@ -16,64 +17,14 @@ class FrelptTransBase(object):
             res = self.respaths[name][-1]
             return get_typedecl_parent(res)
 
+        elif is_structure_constructor_2(name.parent) and name is name.parent.subnodes[0]:
+            pass
+
+        elif is_subroutine_name(name):
+            pass
+
         else:
             import pdb; pdb.set_trace()
-
-#    def get_sec_sub_string(self, name):
-#
-#        tdecl_section = None
-#
-#        # get section from typedecl stmt
-#        if is_partref(name.parent):
-#            if name.parent.subnodes[1] in self.respaths:
-#                res = self.respaths[name.parent.subnodes[1]][-1]
-#
-#                if is_entitydecl(res.parent):
-#                    if res.parent.subnodes[1]:
-#                        tdecl_section = [":"] * (len(res.parent.subnodes[1].wrapped.items) - 1)
-#                else:
-#                    tdecl = get_typedecl_parent(res)
-#                    if tdecl:
-#                        import pdb; pdb.set_trace()
-#
-#                    else:
-#                        import pdb; pdb.set_trace()
-#        else:
-#            res = self.respaths[name][-1]
-#            if is_entitydecl(res.parent):
-#                if res.parent.subnodes[1]:
-#                    tdecl_section = [":"] * (len(res.parent.subnodes[1].wrapped.items) - 1)
-#            else:
-#                tdecl = get_typedecl_parent(res)
-#                if tdecl:
-#                    import pdb; pdb.set_trace()
-#                else:
-#                    import pdb; pdb.set_trace()
-#
-#        # get section from exec stmt
-#        exec_section = None
-#
-#        if is_partref(name.parent):
-#            if name.parent.subnodes[0] in self.respaths:
-#                res = self.respaths[name.parent.subnodes[0]][-1]
-#                tdecl = get_typedecl_parent(res)
-#                if tdecl:
-#                    import pdb; pdb.set_trace()
-#            else:
-#                import pdb; pdb.set_trace()
-#        
-#
-#        if tdecl_section and exec_section:
-#            import pdb ;pdb.set_trace()
-#
-#        elif tdecl_section:
-#            return ", " + ", ".join(tdecl_section)
-#
-#        elif exec_section:
-#            import pdb ;pdb.set_trace()
-#
-#        else:
-#            return ""
 
     def get_sec_sub_string(self, name):
 

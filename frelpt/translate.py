@@ -174,6 +174,7 @@ class FrelptTranslator(pyloco.Task, FrelptTransBase):
         #################
         # promote arrvars
         #################
+
         for arrvar in arrvars:
             if any(is_descendant(arrvar, fs) for fs in funcstmts):
                 self.promote_array_var(arrvar)
@@ -188,7 +189,7 @@ class FrelptTranslator(pyloco.Task, FrelptTransBase):
         # promote typedecl stmts
         ########################
         for tdecl in ptypedecls:
-            promote_typedecl(tdecl)
+            promote_typedecl(tdecl, self.loopctr)
         
         ####################################
         # process global variable promotions
@@ -349,8 +350,8 @@ class FrelptTranslator(pyloco.Task, FrelptTransBase):
             raise Exception("Function name '%s' is not resolved yet." % str(funccall))
 
     def promote_array_var(self, arrvar):
-
         if isinstance(arrvar.parent.wrapped, Part_Ref):
+            
             replace_dovar_with_section_subscript(arrvar.parent.subnodes[1],
                                                  self.loopctr)
         else:

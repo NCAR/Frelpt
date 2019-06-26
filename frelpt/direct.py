@@ -69,9 +69,9 @@ class FrelptDirective(pyloco.Task):
                             donode_idx = child.parent.subnodes.index(child)
                             target_donode = child
                             initial_nodes = [child] + child.parent.subnodes[donode_idx+1:]
+                            break
                         elif child.wrapped in parser.do_constructs:
                             import pdb; pdb.set_trace()
-                    break
 
         self.add_forward(tree=target_tree)
         self.add_forward(donode=target_donode)

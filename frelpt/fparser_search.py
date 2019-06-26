@@ -1393,6 +1393,11 @@ class Searcher(pyloco.Task):
         if node.__class__.__name__ != "Name":
             self._search(node, ids, rtypes)
 
+
+    def search_Access_Stmt(self, node, ids, rtypes):
+
+        import pdb; pdb.set_trace()
+
     def search_Add_Operand(self, node, ids, rtypes):
 
         self._search_subnodes(node, ids, rtypes, excludes=[1])
@@ -1411,6 +1416,11 @@ class Searcher(pyloco.Task):
         """
         <actual-arg-spec> = [ <keyword> = ] <actual-arg>
         """
+        import pdb; pdb.set_trace()
+
+
+    def resolve_Allocate_Stmt(self, node, ids, rtypes):
+
         import pdb; pdb.set_trace()
 
     def search_Assignment_Stmt(self, node, ids, rtypes):
@@ -1496,6 +1506,15 @@ class Searcher(pyloco.Task):
 
         self._search_subnodes(node, ids, rtypes)
 
+
+    def search_If_Construct(self, node, ids, rtypes):
+
+        import pdb; pdb.set_trace()
+
+    def search_If_Stmt(self, node, ids, rtypes):
+
+        import pdb; pdb.set_trace()
+
     def search_Implicit_Part(self, node, ids, rtypes):
 
         self._search_subnodes(node, ids, rtypes)
@@ -1507,6 +1526,10 @@ class Searcher(pyloco.Task):
     def search_Int_Literal_Constant(self, node, ids, rtypes):
 
         self._search(node.subnodes[1], ids, rtypes)
+
+    def search_Internal_Subprogram_Part(self, node, ids, rtypes):
+
+        import pdb; pdb.set_trace()
 
     def search_Intrinsic_Type_Spec(self, node, ids, rtypes):
         """
@@ -1572,6 +1595,10 @@ class Searcher(pyloco.Task):
 
         self._search_subnodes(node, ids, rtypes)
 
+    def search_Mult_Operand(self, node, ids, rtypes):
+
+        import pdb; pdb.set_trace()
+
     def search_Nonlabel_Do_Stmt(self, node, ids, rtypes):
         """
             R829
@@ -1591,6 +1618,14 @@ class Searcher(pyloco.Task):
         """
         self._search(node.subnodes[0], ids, rtypes) # assumes rtypes are already specified
         self._search(node.subnodes[1], ids, rtypes)
+
+    def search_Pointer_Assignment_Stmt(self, node, ids, rtypes):
+
+        import pdb; pdb.set_trace()
+
+    def search_Prefix_Spec(self, node, ids, rtypes):
+
+        import pdb; pdb.set_trace()
 
     def search_Procedure_Designator(self, node, ids, rtypes):
         """

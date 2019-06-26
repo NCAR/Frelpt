@@ -140,7 +140,7 @@ class LPTFunctionTranslator(pyloco.Task, FrelptTransBase):
             ########################
             # promote typedecl stmts
             ########################
-            promote_typedecl(dummy_res_path)
+            promote_typedecl(dummy_res_path, self.loopctr)
 
         ########################
         # add dummy args

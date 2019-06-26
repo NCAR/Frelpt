@@ -185,7 +185,8 @@ def replace_dovar_with_section_subscript(node, loopctr):
             else:
                 st = Subscript_Triplet("%s:%s" % (start, stop))
 
-            return ConcreteSyntaxNode(None, "expr", st)
+            return generate(st)
+            #return ConcreteSyntaxNode(None, "expr", st)
 
         return _f
 
@@ -290,7 +291,7 @@ def collect_func_calls(node, arrvars, arr_actargs, respaths):
     return func_calls
 
 
-def promote_typedecl(respath):
+def promote_typedecl(respath, loopctr):
 
     typedecl = None
     node = respath[-1]
@@ -311,7 +312,8 @@ def promote_typedecl(respath):
                 if isinstance(array_spec.wrapped, Assumed_Shape_Spec):
 
                     speclistnode = Assumed_Shape_Spec_List(":,"+array_spec.wrapped.tofortran())
-                    speclist = ConcreteSyntaxNode(entity_decls, "expr", speclistnode)
+                    speclist = generate(speclistnode)
+                    #speclist = ConcreteSyntaxNode(entity_decls, "expr", speclistnode)
                     replace_subnode(entity_decls, 1, speclist)
 
                     if char_length or init:
@@ -321,11 +323,26 @@ def promote_typedecl(respath):
                     import pdb; pdb.set_trace()
 
 
+                elif isinstance(array_spec.wrapped, (Explicit_Shape_Spec, Explicit_Shape_Spec_List)):
+
+                    if loopctr["step"]:
+                        speclistnode = Explicit_Shape_Spec_List("frelpt_start:frelpt_stop:frelpt_step, " + array_spec.wrapped.tofortran())
+                    else:
+                        speclistnode = Explicit_Shape_Spec_List("frelpt_start:frelpt_stop, " + array_spec.wrapped.tofortran())
+
+                    speclist = generate(speclistnode)
+                    #speclist = ConcreteSyntaxNode(entity_decls, "expr", speclistnode)
+                    replace_subnode(entity_decls, 1, speclist)
+
                 else:
                     import pdb; pdb.set_trace()
 
             elif attr_specs:
-                import pdb; pdb.set_trace()
+
+                dimattr = get_attr_spec(attr_specs, Dimension_Attr_Spec)
+
+                if dimattr:
+                    import pdb; pdb.set_trace()
 
             else:
                 import pdb; pdb.set_trace()
@@ -350,7 +367,8 @@ def add_loopctr_dummy_args(funcstmt, loopctr, argsplit_index=0):
                 frelpt_args = ["frelpt_start", "frelpt_stop", "frelpt_step"]
                 postfix = [str(d) for d in dummy_args.subnodes[argsplit_index:]]
                 dummyargsnode = Dummy_Arg_List(", ".join(prefix+frelpt_args+postfix))
-            dummyargs = ConcreteSyntaxNode(funcstmt, "expr", dummyargsnode)
+            dummyargs = generate(dummyargsnode)
+            #dummyargs = ConcreteSyntaxNode(funcstmt, "expr", dummyargsnode)
             replace_subnode(funcstmt, 2, dummyargs)
 
         else:
@@ -363,10 +381,12 @@ def add_loopctr_dummy_args(funcstmt, loopctr, argsplit_index=0):
 
     if specpart:
         intentnode = Type_Declaration_Stmt("INTEGER, INTENT(IN) :: frelpt_start, frelpt_stop, frelpt_step")
-        intent = ConcreteSyntaxNode(specpart[0], "stmt", intentnode)
+        intent = generate(intentnode)
+        #intent = ConcreteSyntaxNode(specpart[0], "stmt", intentnode)
         append_subnode(specpart[0], intent)
         dovarnode = Type_Declaration_Stmt("INTEGER :: frelpt_index")
-        dovar = ConcreteSyntaxNode(specpart[0], "stmt", dovarnode)
+        dovar = generate(dovarnode)
+        #dovar = ConcreteSyntaxNode(specpart[0], "stmt", dovarnode)
         append_subnode(specpart[0], dovar)
 
     else:
@@ -380,7 +400,8 @@ def add_loopctr_actual_args(callstmt, loopctr):
 
         if isinstance(actual_args.wrapped, Actual_Arg_Spec_List):
             actualargsnode = Actual_Arg_Spec_List("frelpt_start, frelpt_stop, frelpt_step,"+actual_args.wrapped.tofortran())
-            actualargs = ConcreteSyntaxNode(callstmt, "expr", actualargsnode)
+            actualargs = generate(actualargsnode)
+            #actualargs = ConcreteSyntaxNode(callstmt, "expr", actualargsnode)
             replace_subnode(callstmt, 1, actualargs)
 
         else:
@@ -411,7 +432,8 @@ def collect_funccall_stmt(funccall):
 
 def get_partref(parent, text):
 
-    return ConcreteSyntaxNode(parent, "expr", Part_Ref(text))
+    return generate(Part_Ref(text))
+    #return ConcreteSyntaxNode(parent, "expr", Part_Ref(text))
 
 
 def is_partref(node):
@@ -434,6 +456,10 @@ def is_section_subscript_list(node):
 
     return hasattr(node, "wrapped") and isinstance(node.wrapped, Section_Subscript_List)
 
+def is_structure_constructor_2(node):
+
+    return hasattr(node, "wrapped") and isinstance(node.wrapped, Structure_Constructor_2)
+
 def is_name(node):
 
     return hasattr(node, "wrapped") and isinstance(node.wrapped, Name)
@@ -448,3 +474,4 @@ def is_classtype(node):
 def is_dummy_arg_list(node):
 
     return hasattr(node, "wrapped") and isinstance(node.wrapped, Dummy_Arg_List)
+
