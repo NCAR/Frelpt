@@ -16,7 +16,7 @@ from frelpt.fparser_lptfunc import LPTFunctionTranslator
 from frelpt.fparser_collect_promotion import CollectVars4Promotion
 from frelpt.fparser_util import (collect_names, get_parent_by_class, get_entity_decl_by_name,
                 get_attr_spec, collect_nodes_by_class, collect_func_calls, promote_typedecl, collect_funccall_stmt,
-                replace_dovar_with_section_subscript, append_subnode,
+                replace_dovar_with_section_subscript, append_subnode, is_blank_dobody,
                 remove_subnode, insert_subnode, is_descendant)
 
 # collect start, stop, and step parameters
@@ -162,14 +162,17 @@ class FrelptTranslator(pyloco.Task, FrelptTransBase):
         # reposition this subnode to just above of do node
         ##################################################
         pnode = targs.donode.parent
-        idxdo = pnode.subnodes.index(targs.donode)
+        ppnode = pnode.parent
+        idxdo = ppnode.subnodes.index(pnode)
 
-        #import pdb; pdb.set_trace()
         for fidx, funcstmt in enumerate(funcstmts):
             pfunc = funcstmt.parent
             idx = pfunc.subnodes.index(funcstmt)
             f = remove_subnode(pfunc, idx)
-            insert_subnode(pnode, idxdo+fidx, f)
+            insert_subnode(ppnode, idxdo+fidx, f)
+
+        if is_blank_dobody(pnode):
+            remove_subnode(ppnode, ppnode.subnodes.index(pnode))
 
         #################
         # promote arrvars
@@ -352,8 +355,7 @@ class FrelptTranslator(pyloco.Task, FrelptTransBase):
     def promote_array_var(self, arrvar):
         if isinstance(arrvar.parent.wrapped, Part_Ref):
             
-            replace_dovar_with_section_subscript(arrvar.parent.subnodes[1],
-                                                 self.loopctr)
+            replace_dovar_with_section_subscript(arrvar.parent.subnodes[1], self.loopctr)
         else:
             import pdb; pdb.set_trace()
 

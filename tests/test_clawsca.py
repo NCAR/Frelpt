@@ -16,8 +16,8 @@ claw_sca_tests = "/Users/youngsun/repos/github/claw-compiler/test/claw/sca"
 makefile1 = """
 fc='gfortran'
 
-org: clean
-\t${fc} -o org.exe mo_column.f90 main.f90 && ./org.exe
+test: clean
+\t${fc} -o test.exe mo_column.f90 main.f90 && ./test.exe
 
 clean:
 \trm -rf *.o *.mod *.exe
@@ -26,8 +26,8 @@ clean:
 makefile2 = """
 fc='gfortran'
 
-org: clean
-\t${fc} -o org.exe mo_column.f90 mo_column_extra.f90 main.f90 && ./org.exe
+test: clean
+\t${fc} -o test.exe mo_column.f90 mo_column_extra.f90 main.f90 && ./test.exe
 
 clean:
 \trm -rf *.o *.mod *.exe
@@ -86,10 +86,10 @@ class ClawSCATests(unittest.TestCase):
                 f.write(makefile)
 
 
-            # FOR DEBUG: pass pyloco finished test cases
-#            if last in ("sca21", "sca19", "sca26"):
-#                continue
-#
+            # FOR DEBUG: skip pyloco finished test cases
+            #if last in ("sca21", "sca19", "sca26"):
+            #    continue
+
 #            print("BEGIN : ", last)
 #
 #            retval, forward = pyloco.perform(frelpt.FrelptTask, argv=[
@@ -103,15 +103,18 @@ class ClawSCATests(unittest.TestCase):
 #     
 #            print("FINISHED : ", last)
 #
-#            out1 = pyloco.system("make org", cwd=orgdir)
+#            out1 = pyloco.system("make test", cwd=orgdir)
 #            print("ORG EXECUTED : ", last)
 #
-#            out2 = pyloco.system("make org", cwd=lptdir)
+#            out2 = pyloco.system("make test", cwd=lptdir)
 #            print("LPT EXECUTED : ", last)
 #
-#            #import pdb; pdb.set_trace()
 #            self.assertEqual(out1[0], 0) 
 #            print("ORG RETURNED NO-ERROR : ", last)
+#
+#            if out2[0] != 0:
+#                print(out2[2])
+#                import pdb; pdb.set_trace()
 #
 #            self.assertEqual(out2[0], 0) 
 #            print("LPT RETURNED NO-ERROR : ", last)
@@ -134,10 +137,10 @@ class ClawSCATests(unittest.TestCase):
          
                 print("FINISHED : ", last)
 
-                out1 = pyloco.system("make org", cwd=orgdir)
+                out1 = pyloco.system("make test", cwd=orgdir)
                 print("ORG EXECUTED : ", last)
 
-                out2 = pyloco.system("make org", cwd=lptdir)
+                out2 = pyloco.system("make test", cwd=lptdir)
                 print("LPT EXECUTED : ", last)
 
                 #import pdb; pdb.set_trace()

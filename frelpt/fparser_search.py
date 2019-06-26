@@ -319,20 +319,19 @@ class ResBuilder(object):
                     else:
                         raise Exception("Unprocessed node: %s" % name)
 
-        # TODO: create res map instead of calculating everytime
-        with open("resmap.csv", "w", newline="") as f:
-            for n, res in self._resmap.items():
-                f.write("%s," % n.__name__)
-                if isinstance(res, PassSet):
-                    f.write("PASS\n")
-                else:
-                    lres = list(res)
-                    if lres:
-                        for r in lres[:-1]: 
-                            f.write("%s," % r.__name__)
-                        f.write("%s\n" % lres[-1].__name__)
+            with open("resmap.csv", "w", newline="") as f:
+                for n, res in self._resmap.items():
+                    f.write("%s," % n.__name__)
+                    if isinstance(res, PassSet):
+                        f.write("PASS\n")
                     else:
-                        f.write("\n")
+                        lres = list(res)
+                        if lres:
+                            for r in lres[:-1]: 
+                                f.write("%s," % r.__name__)
+                            f.write("%s\n" % lres[-1].__name__)
+                        else:
+                            f.write("\n")
 
     def _getnode(self, name):
 
