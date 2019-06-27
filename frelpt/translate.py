@@ -107,6 +107,7 @@ class FrelptTranslator(pyloco.Task, FrelptTransBase):
         ptypedecls = {} 
 
         self.loopctr = {}
+
         targs.donode.traverse(self.loopctr, func=collect_do_loopcontrol)
 
         ################################

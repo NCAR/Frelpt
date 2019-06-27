@@ -46,8 +46,18 @@ class ClawSCATests(unittest.TestCase):
         for test in glob.glob(claw_sca_tests + "/sca*"):
             last = os.path.basename(os.path.normpath(test))
 
-            if last in ("sca2",):
+            if last in ("sca2", "sca37", "sca38", "sca41", "sca43", "sca45"):
+                # sca2 : hung
+                # sca37 : not a do-loop
+                # sca38 : blank program
+                # sca41 : not a do-loop
+                # sca43 : not a do-loop
+                # sca45 : not a do-loop
+
                 continue
+
+            #if last not in ("sca38",):
+            #    continue
 
             print("FOUND : ", last)
 
@@ -68,7 +78,7 @@ class ClawSCATests(unittest.TestCase):
             with open(target, "r") as fr:
                 with open(orgmain, "w") as fw:
                     for line in fr:
-                        if line.lstrip().startswith("!$claw sca"):
+                        if line.lstrip().startswith("!$claw sca") or line.lstrip().startswith("!$claw parallelize"):
                             fw.write("!$frelpt pushdown\n")
                         else:
                             fw.write(line)
@@ -122,6 +132,8 @@ class ClawSCATests(unittest.TestCase):
 #            self.assertEqual(out1[1].split()[-1], out2[1].split()[-1])
 #            print("PASSED : ", last)
            
+            #import pdb; pdb.set_trace()
+
             with self.subTest(sca=last):
 
                 print("BEGIN : ", last)
