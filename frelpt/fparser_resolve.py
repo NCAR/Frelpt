@@ -340,7 +340,33 @@ class Resolver(pyloco.Task):
 
     def resolve_Add_Operand(self, node, res, path, pending, upward):
 
-        return self._bypass(node, res, path, pending, upward)
+        if upward:
+            return self._resolve(node.parent, res, path, pending, upward)
+
+    def resolve_Allocate_Shape_Spec(self, node, res, path, pending, upward):
+
+        if upward:
+            return self._resolve(node.parent, res, path, pending, upward)
+
+    def resolve_Allocate_Stmt(self, node, res, path, pending, upward):
+
+        if upward:
+            return self._resolve(node.parent, res, path, pending, upward)
+
+    def resolve_Allocation(self, node, res, path, pending, upward):
+
+        if upward:
+            return self._resolve(node.parent, res, path, pending, upward)
+
+    def resolve_And_Operand(self, node, res, path, pending, upward):
+
+        if upward:
+            return self._resolve(node.parent, res, path, pending, upward)
+
+    def resolve_Array_Section(self, node, res, path, pending, upward):
+
+        if upward:
+            return self._resolve(node.parent, res, path, pending, upward)
 
     def resolve_Assignment_Stmt(self, node, res, path, pending, upward):
         if upward:
@@ -357,8 +383,37 @@ class Resolver(pyloco.Task):
     def resolve_Comment(self, node, res, path, pending, upward):
         pass
 
+    def resolve_Component_Decl(self, node, res, path, pending, upward):
+
+        return self._bypass(node, res, path, pending, upward)
+
+    def resolve_Component_Part(self, node, res, path, pending, upward):
+
+        return self._bypass(node, res, path, pending, upward)
+
     def resolve_Contains_Stmt(self, node, res, path, pending, upward):
         pass
+
+    def resolve_Data_Component_Def_Stmt(self, node, res, path, pending, upward):
+
+        if upward:
+            return self._resolve(node.parent, res, path, pending, upward)
+
+        elif Data_Component_Def_Stmt in res:
+            type_spec, attr_specs, decl_list = node.subnodes
+            if self._resolve(decl_list, res, path, pending, upward):
+                self._search_resolve(type_spec, attr_specs)
+                return True
+
+    def resolve_Data_Ref(self, node, res, path, pending, upward):
+
+        if upward:
+            return self._resolve(node.parent, res, path, pending, upward)
+
+    def resolve_Deallocate_Stmt(self, node, res, path, pending, upward):
+
+        if upward:
+            return self._resolve(node.parent, res, path, pending, upward)
 
     def resolve_Declaration_Type_Spec(self, node, res, path, pending, upward):
         """
@@ -402,10 +457,11 @@ class Resolver(pyloco.Task):
 
         else:
             name, array_spec, char_length, init = node.subnodes
-            if self._resolve(name, res, path, pending, upward):
-                self.log_debug("Resolved '%s' at Entity_Decl" % str(path[0]))
-                self._search_resolve(array_spec, char_length, init)
-                return True
+            return self._resolve(name, res, path, pending, upward)
+            #if self._resolve(name, res, path, pending, upward):
+                #self.log_debug("Resolved '%s' at Entity_Decl" % str(path[0]))
+                #self._search_resolve(array_spec, char_length, init)
+                #return True
 
     def resolve_Execution_Part(self, node, res, path, pending, upward):
         if upward:
@@ -418,6 +474,7 @@ class Resolver(pyloco.Task):
             return self._subnode_resolve(node, res, path, pending)
 
     def resolve_Explicit_Shape_Spec(self, node, res, path, pending, upward):
+
         if upward:
             return self._resolve(node.parent, res, path, pending, upward)
 
@@ -442,6 +499,21 @@ class Resolver(pyloco.Task):
         else:
             return self._subnode_resolve(node, res, path, pending)
 
+    def resolve_If_Construct(self, node, res, path, pending, upward):
+
+        if upward:
+            return self._resolve(node.parent, res, path, pending, upward)
+
+    def resolve_If_Stmt(self, node, res, path, pending, upward):
+
+        if upward:
+            return self._resolve(node.parent, res, path, pending, upward)
+
+    def resolve_If_Then_Stmt(self, node, res, path, pending, upward):
+
+        if upward:
+            return self._resolve(node.parent, res, path, pending, upward)
+
     def resolve_Implicit_Stmt(self, node, res, path, pending, upward):
 
         if upward:
@@ -454,6 +526,11 @@ class Resolver(pyloco.Task):
         return self._bypass(node, res, path, pending, upward)
 
     def resolve_Level_2_Expr(self, node, res, path, pending, upward):
+        if upward:
+            return self._resolve(node.parent, res, path, pending, upward)
+
+    def resolve_Level_4_Expr(self, node, res, path, pending, upward):
+
         if upward:
             return self._resolve(node.parent, res, path, pending, upward)
 
@@ -520,6 +597,11 @@ class Resolver(pyloco.Task):
             return True
         else:
             return self._subnode_resolve(node, res, path, pending)
+
+    def resolve_Mult_Operand(self, node, res, path, pending, upward):
+
+        if upward:
+            return self._resolve(node.parent, res, path, pending, upward)
 
     def resolve_Name(self, node, res, path, pending, upward):
         if upward: # start resolve
@@ -606,6 +688,11 @@ class Resolver(pyloco.Task):
         else:
             return self._subnode_resolve(node, res, path, pending)
 
+    def resolve_Structure_Constructor_2(self, node, res, path, pending, upward):
+
+        if upward:
+            return self._resolve(node.parent, res, path, pending, upward)
+
     def resolve_Subroutine_Stmt(self, node, res, path, pending, upward):
         """
         <subroutine-stmt>
@@ -635,6 +722,7 @@ class Resolver(pyloco.Task):
             return self._subnode_resolve(node, res, path, pending)
 
     def resolve_Suffix(self, node, res, path, pending, upward):
+
         if upward:
             return self._resolve(node.parent, res, path, pending, upward)
 

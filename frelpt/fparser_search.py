@@ -1397,10 +1397,6 @@ class Searcher(pyloco.Task):
 
         self._search(node.subnodes[1], ids, rtypes)
 
-    def search_Add_Operand(self, node, ids, rtypes):
-
-        self._search_subnodes(node, ids, rtypes, excludes=[1])
-
     def search_Actual_Arg(self, node, ids, rtypes):
         """
         <actual-arg> = <expr>
@@ -1417,10 +1413,30 @@ class Searcher(pyloco.Task):
         """
         import pdb; pdb.set_trace()
 
+    def search_Add_Operand(self, node, ids, rtypes):
 
-    def resolve_Allocate_Stmt(self, node, ids, rtypes):
+        self._search(node.subnodes[0], ids, rtypes)
+        self._search(node.subnodes[2], ids, rtypes)
 
-        import pdb; pdb.set_trace()
+    def search_Allocate_Shape_Spec(self, node, ids, rtypes):
+
+        self._search_subnodes(node, ids, rtypes)
+
+    def search_Allocate_Stmt(self, node, ids, rtypes):
+
+        self._search_subnodes(node, ids, rtypes)
+
+    def search_Allocation(self, node, ids, rtypes):
+
+        self._search_subnodes(node, ids, rtypes)
+
+    def search_And_Operand(self, node, ids, rtypes):
+
+        self._search(node.subnodes[1], ids, rtypes)
+
+    def search_Array_Section(self, node, ids, rtypes):
+
+        self._search_subnodes(node, ids, rtypes)
 
     def search_Assignment_Stmt(self, node, ids, rtypes):
         """
@@ -1461,12 +1477,42 @@ class Searcher(pyloco.Task):
     def search_Comment(self, node, ids, rtypes):
         pass
 
+    def search_Component_Attr_Spec(self, node, ids, rtypes):
+
+        self._search_subnodes(node, ids, rtypes)
+
+    def search_Component_Decl(self, node, ids, rtypes):
+
+        self._search_subnodes(node, ids, rtypes, excludes=[0])
+
+    def search_Component_Part(self, node, ids, rtypes):
+
+        self._search_subnodes(node, ids, rtypes)
+    
     def search_Contains_Stmt(self, node, ids, rtypes):
         pass
+
+    def search_Data_Component_Def_Stmt(self, node, ids, rtypes):
+
+        self._search_subnodes(node, ids, rtypes)
+
+    def search_Data_Ref(self, node, ids, rtypes):
+
+        # TODO: search part_refs once resolution for the first name is completed.
+        #self._search_subnodes(node, ids, rtypes)
+
+        self._search(node.subnodes[0], ids, rtypes)
+
+    def search_Deallocate_Stmt(self, node, ids, rtypes):
+
+        self._search_subnodes(node, ids, rtypes)
 
     def search_Declaration_Type_Spec(self, node, ids, rtypes):
 
         self._search_subnodes(node, ids, rtypes)
+
+    def search_Deferred_Shape_Spec(self, node, ids, rtypes):
+        pass
 
     def search_Derived_Type_Def(self, node, ids, rtypes):
 
@@ -1481,6 +1527,9 @@ class Searcher(pyloco.Task):
         <dimension-attr-spec> = DIMENSION ( <array-spec> )
         """
         self._search(node.subnodes[1], ids, rtypes)
+
+    def search_Else_Stmt(self, node, ids, rtypes):
+        pass
 
     def search_Entity_Decl(self, node, ids, rtypes):
 
@@ -1511,6 +1560,10 @@ class Searcher(pyloco.Task):
         self._search_subnodes(node, ids, rtypes)
 
     def search_If_Stmt(self, node, ids, rtypes):
+
+        self._search_subnodes(node, ids, rtypes)
+
+    def search_If_Then_Stmt(self, node, ids, rtypes):
 
         self._search_subnodes(node, ids, rtypes)
 
@@ -1559,6 +1612,11 @@ class Searcher(pyloco.Task):
                      | -
         """
  
+        self._search(node.subnodes[0], ids, rtypes)
+        self._search(node.subnodes[2], ids, rtypes)
+
+    def search_Level_4_Expr(self, node, ids, rtypes):
+
         self._search(node.subnodes[0], ids, rtypes)
         self._search(node.subnodes[2], ids, rtypes)
 
@@ -1680,6 +1738,10 @@ class Searcher(pyloco.Task):
         """
         <subscript-triplet> = [ <subscript> ] : [ <subscript> ] [ : <stride> ]
         """
+
+        self._search_subnodes(node, ids, rtypes)
+
+    def search_Substring_Range(self, node, ids, rtypes):
 
         self._search_subnodes(node, ids, rtypes)
 
