@@ -56,7 +56,7 @@ class ClawSCATests(unittest.TestCase):
 
                 continue
 
-            #if last not in ("sca38",):
+            #if last not in ("sca31",):
             #    continue
 
             print("FOUND : ", last)
