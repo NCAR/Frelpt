@@ -100,6 +100,8 @@ class ClawSCATests(unittest.TestCase):
             #if last in ("sca21", "sca19", "sca26"):
             #    continue
 
+######### FOR DEBUG ################
+
 #            print("BEGIN : ", last)
 #
 #            retval, forward = pyloco.perform(frelpt.FrelptTask, argv=[
@@ -131,6 +133,7 @@ class ClawSCATests(unittest.TestCase):
 #
 #            self.assertEqual(out1[1].split()[-1], out2[1].split()[-1])
 #            print("PASSED : ", last)
+######### FOR DEBUG ################
            
             #import pdb; pdb.set_trace()
 
@@ -150,10 +153,7 @@ class ClawSCATests(unittest.TestCase):
                 print("FINISHED : ", last)
 
                 out1 = pyloco.system("make test", cwd=orgdir)
-                print("ORG EXECUTED : ", last)
-
                 out2 = pyloco.system("make test", cwd=lptdir)
-                print("LPT EXECUTED : ", last)
 
                 #import pdb; pdb.set_trace()
                 self.assertEqual(out1[0], 0) 
