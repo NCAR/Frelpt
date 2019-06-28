@@ -41,11 +41,13 @@ class Resolver(pyloco.Task):
 
         self.add_data_argument("node", help="node to search")
         self.add_data_argument("resolvers", help="a list of candidate resolvers")
+        self.add_data_argument("followups", help="a list of nodes to be search and resolve if target is resolved")
         self.add_data_argument("macros", help="macro definitions")
         self.add_data_argument("includes", help="include paths")
         self.add_data_argument("analyzers", help="in-search analyzers")
         self.add_data_argument("searcher", help="identifier searcher")
 
+        self.add_option_argument("--entrynode", help="the first node to resolve")
         self.add_option_argument("--trees", recursive=True, help="ast tree of source files")
         self.add_option_argument("--modules", recursive=True, help="identifier searcher")
         self.add_option_argument("--respaths", recursive=True, help="identifier searcher")
@@ -71,6 +73,8 @@ class Resolver(pyloco.Task):
         self.includes = {}
         self.analyzers = []
         self.resolvers = None
+        self.followups = None
+        self.entrynode = None
         self.searcher = None
 
         self.trees =  {}
@@ -140,9 +144,19 @@ class Resolver(pyloco.Task):
         if targs.resolvers:
             self.resolvers = targs.resolvers
 
+        if targs.followups:
+            self.followups = targs.followups
+
+        if targs.entrynode:
+            self.entrynode = targs.entrynode
+            respath = [targs.node]
+
+        else:
+            self.entrynode = targs.node
+            respath = []
+
         if targs.searcher:
             self.searcher = targs.searcher
-
 
         if targs.trees:
             self.trees.update(targs.trees)
@@ -158,14 +172,13 @@ class Resolver(pyloco.Task):
 
         self._add_modules(targs.node)
 
-        respath = []
         pending = {"implicit_nodes": []}
 
         self.respaths[targs.node] = respath
 
         self.log_debug("Resolving '%s'"%str(targs.node.wrapped))
 
-        if self._resolve(targs.node, self.resolvers, respath, pending, True):
+        if self._resolve(self.entrynode, self.resolvers, respath, pending, True):
             if respath[-1] in self.invrespaths:
                 self.invrespaths[respath[-1]].append(respath)
 
@@ -293,13 +306,16 @@ class Resolver(pyloco.Task):
                 return getattr(self, "resolve_"+clsname)(node, res, path, pending, upward)
 
     def _search_resolve(self, *nodes):
+
         for n1 in nodes:
             forward = { "node": n1 }
             _, _fwd = self.searcher.run([], forward=forward)
-            for n2, res in _fwd["ids"].items():
+
+            for n2, (res, followups) in _fwd["ids"].items():
                 forward = {
                     "node": n2,
                     "resolvers": res,
+                    "followups": followups,
                     "macros": self.macros,
                     "includes": self.includes,
                     "analyzers": self.analyzers,
@@ -401,6 +417,7 @@ class Resolver(pyloco.Task):
 
         elif Data_Component_Def_Stmt in res:
             type_spec, attr_specs, decl_list = node.subnodes
+
             if self._resolve(decl_list, res, path, pending, upward):
                 self._search_resolve(type_spec, attr_specs)
                 return True
@@ -439,10 +456,42 @@ class Resolver(pyloco.Task):
 
         if upward:
             return self._resolve(node.parent, res, path, pending, upward)
+
         elif Derived_Type_Stmt in res:
-            attr_specs, name, Type_Param_Name_List = node.subnodes
+            attr_specs, name, type_param_name_list = node.subnodes
+
             if self._resolve(name, res, path, pending, upward):
-                self._search_resolve(attr_specs, Type_Param_Name_List)
+                self._search_resolve(attr_specs, type_param_name_list)
+
+                if self.followups:
+                    entrynode = node.parent
+
+                    for fname, fres in self.followups:
+
+                        fpath = [fname]
+
+                        if self._resolve(entrynode, fres, fpath, pending, False):
+                            self.respaths[fname] = fpath
+
+                            if fpath[-1] in self.invrespaths:
+                                self.invrespaths[fpath[-1]].append(fname)
+
+                            else:
+                                self.invrespaths[fpath[-1]] = [fname]
+
+                            entrynode = None
+                            _n = fpath[-1]
+
+                            while hasattr(_n, "parent") and _n.parent is not None:
+                                _n = _n.parent
+
+                                if isinstance(_n.wrapped, Derived_Type_Def):
+                                    entrynode = _n
+                                    break
+                        else:
+                            print("Followup resolution is failed: %s" % str(fname))
+                            import pdb; pdb.set_trace() 
+                            
                 return True
 
     def resolve_Entity_Decl(self, node, res, path, pending, upward):
@@ -742,8 +791,10 @@ class Resolver(pyloco.Task):
         if upward:
             # assuming self-resolve is handled by entity_decls
             return self._resolve(node.parent, res, path, pending, upward)
+
         elif Type_Declaration_Stmt in res:
             type_spec, attr_specs, entity_decls = node.subnodes
+
             if self._resolve(entity_decls, res, path, pending, upward):
                 self._search_resolve(type_spec, attr_specs)
                 self.log_debug("Resolved '%s' in Type_Declaration_Stmt" % str(path[0]))

@@ -635,10 +635,6 @@ class ResBuilder(object):
         path.append(Component_Decl_List)
         return r1 | r2 | self._resres(path)
 
-    def res_Data_Stmt_Value(self, path):
-
-        return self._subresolvers(path)
-
     def res_Data_Implied_Do(self, path):
 
         return self._subresolvers(path)
@@ -660,6 +656,10 @@ class ResBuilder(object):
 
         path.append(Data_Implied_Do)
         return res_typedecl | self._resres(path)
+
+    def res_Data_Stmt_Value(self, path):
+
+        return self._subresolvers(path)
 
     def res_Data_Target(self, path):
 
@@ -1018,7 +1018,7 @@ class ResBuilder(object):
     def res_Part_Ref(self, path):
 
         path.append(Section_Subscript_List)
-        return res_typedecl | self._resres(path)
+        return res_typedecl | res_part | self._resres(path)
 
     def res_Pointer_Assignment_Stmt(self, path):
 
@@ -1326,16 +1326,14 @@ class Searcher(pyloco.Task):
         if targs.node:
             #self.log_debug("Searching '%s'"%str(targs.node.wrapped))
 
-            # current search scope
-            css = None
-            self._search(targs.node, ids, set(res_all_stmts.keys()), css)
+            self._search(targs.node, ids, set(res_all_stmts.keys()), None)
 
             #self.log_debug(str([n.wrapped for n in ids.keys()]))
             #self.log_debug(str([n.items() for n in ids.values()]))
 
         self.add_forward(ids=ids)
 
-    def _search(self, node, ids, rtypes, css):
+    def _search(self, node, ids, rtypes, followups=None):
 
         clsname = node.__class__.__name__
 
@@ -1343,13 +1341,13 @@ class Searcher(pyloco.Task):
             return
 
         if clsname == "Name":
-            ids[node] = rtypes
+            ids[node] = (rtypes, followups)
             return
 
         if hasattr(node, "wrapped"):
             if node.wrapped.__class__ in (list,):
                 for subnode in node.subnodes:
-                    self._search(subnode, ids, set(rtypes), css)
+                    self._search(subnode, ids, set(rtypes))
             else:
                 rtypes = rtypes & res[node.wrapped.__class__]
 
@@ -1362,12 +1360,11 @@ class Searcher(pyloco.Task):
 
         if clsname.endswith("_List"):
             for subnode in node.subnodes:
-                self._search(subnode, ids, set(rtypes), css)
+                self._search(subnode, ids, set(rtypes))
         else:
-            getattr(self, "search_"+clsname)(node, ids, rtypes, css)
+            getattr(self, "search_"+clsname)(node, ids, rtypes)
 
-
-    def _search_subnodes(self, node, ids, rtypes, css, includes=None, excludes=[]):
+    def _search_subnodes(self, node, ids, rtypes, includes=None, excludes=[]):
 
         subnodes = []
         nsubnodes = len(node.subnodes)
@@ -1387,19 +1384,19 @@ class Searcher(pyloco.Task):
             if idx in excludes or subnode in excludes:
                 continue
 
-            self._search(subnode, ids, rtypes, css)
+            self._search(subnode, ids, rtypes)
 
-    def _search_noname(self, node, ids, rtypes, css):
+    def _search_noname(self, node, ids, rtypes):
 
         if node.__class__.__name__ != "Name":
-            self._search(node, ids, rtypes, css)
+            self._search(node, ids, rtypes)
 
 
-    def search_Access_Stmt(self, node, ids, rtypes, css):
+    def search_Access_Stmt(self, node, ids, rtypes):
 
-        self._search(node.subnodes[1], ids, rtypes, css)
+        self._search(node.subnodes[1], ids, rtypes)
 
-    def search_Actual_Arg(self, node, ids, rtypes, css):
+    def search_Actual_Arg(self, node, ids, rtypes):
         """
         <actual-arg> = <expr>
                      | <variable>
@@ -1409,54 +1406,54 @@ class Searcher(pyloco.Task):
         """
         import pdb; pdb.set_trace()
 
-    def search_Actual_Arg_Spec(self, node, ids, rtypes, css):
+    def search_Actual_Arg_Spec(self, node, ids, rtypes):
         """
         <actual-arg-spec> = [ <keyword> = ] <actual-arg>
         """
         import pdb; pdb.set_trace()
 
-    def search_Add_Operand(self, node, ids, rtypes, css):
+    def search_Add_Operand(self, node, ids, rtypes):
 
-        self._search(node.subnodes[0], ids, rtypes, css)
-        self._search(node.subnodes[2], ids, rtypes, css)
+        self._search(node.subnodes[0], ids, rtypes)
+        self._search(node.subnodes[2], ids, rtypes)
 
-    def search_Allocate_Shape_Spec(self, node, ids, rtypes, css):
+    def search_Allocate_Shape_Spec(self, node, ids, rtypes):
 
-        self._search_subnodes(node, ids, rtypes, css)
+        self._search_subnodes(node, ids, rtypes)
 
-    def search_Allocate_Stmt(self, node, ids, rtypes, css):
+    def search_Allocate_Stmt(self, node, ids, rtypes):
 
-        self._search_subnodes(node, ids, rtypes, css)
+        self._search_subnodes(node, ids, rtypes)
 
-    def search_Allocation(self, node, ids, rtypes, css):
+    def search_Allocation(self, node, ids, rtypes):
 
-        self._search_subnodes(node, ids, rtypes, css)
+        self._search_subnodes(node, ids, rtypes)
 
-    def search_And_Operand(self, node, ids, rtypes, css):
+    def search_And_Operand(self, node, ids, rtypes):
 
-        self._search(node.subnodes[1], ids, rtypes, css)
+        self._search(node.subnodes[1], ids, rtypes)
 
-    def search_Array_Section(self, node, ids, rtypes, css):
+    def search_Array_Section(self, node, ids, rtypes):
 
-        self._search_subnodes(node, ids, rtypes, css)
+        self._search_subnodes(node, ids, rtypes)
 
-    def search_Assignment_Stmt(self, node, ids, rtypes, css):
+    def search_Assignment_Stmt(self, node, ids, rtypes):
         """
         <assignment-stmt> = <variable> = <expr>
         """
  
-        self._search(node.subnodes[0], ids, rtypes, css)
-        self._search(node.subnodes[2], ids, rtypes, css)
+        self._search(node.subnodes[0], ids, rtypes)
+        self._search(node.subnodes[2], ids, rtypes)
 
-    def search_Assumed_Shape_Spec(self, node, ids, rtypes, css):
+    def search_Assumed_Shape_Spec(self, node, ids, rtypes):
 
-        self._search_subnodes(node, ids, rtypes, css)
+        self._search_subnodes(node, ids, rtypes)
 
-    def search_Attr_Spec(self, node, ids, rtypes, css):
+    def search_Attr_Spec(self, node, ids, rtypes):
 
-        self._search_subnodes(node, ids, rtypes, css)
+        self._search_subnodes(node, ids, rtypes)
 
-    def search_Block_Nonlabel_Do_Construct(self, node, ids, rtypes, css):
+    def search_Block_Nonlabel_Do_Construct(self, node, ids, rtypes):
         """
          R826_2
 
@@ -1464,132 +1461,138 @@ class Searcher(pyloco.Task):
                                          [ <execution-part-construct> ]...
                                          <end-do-stmt>
         """
-        self._search_subnodes(node, ids, rtypes, css)
+        self._search_subnodes(node, ids, rtypes)
 
 
-    def search_Call_Stmt(self, node, ids, rtypes, css):
+    def search_Call_Stmt(self, node, ids, rtypes):
         """
         <call-stmt> = CALL <procedure-designator>
                       [ ( [ <actual-arg-spec-list> ] ) ]
         """
 
-        self._search(node.subnodes[0], ids, rtypes, css)
-        self._search(node.subnodes[1], ids, rtypes, css)
+        self._search(node.subnodes[0], ids, rtypes)
+        self._search(node.subnodes[1], ids, rtypes)
 
-    def search_Comment(self, node, ids, rtypes, css):
+    def search_Comment(self, node, ids, rtypes):
         pass
 
-    def search_Component_Attr_Spec(self, node, ids, rtypes, css):
+    def search_Component_Attr_Spec(self, node, ids, rtypes):
 
-        self._search_subnodes(node, ids, rtypes, css)
+        self._search_subnodes(node, ids, rtypes)
 
-    def search_Component_Decl(self, node, ids, rtypes, css):
+    def search_Component_Decl(self, node, ids, rtypes):
 
-        self._search_subnodes(node, ids, rtypes, css, excludes=[0])
+        self._search_subnodes(node, ids, rtypes, excludes=[0])
 
-    def search_Component_Part(self, node, ids, rtypes, css):
+    def search_Component_Part(self, node, ids, rtypes):
 
-        self._search_subnodes(node, ids, rtypes, css)
+        self._search_subnodes(node, ids, rtypes)
     
-    def search_Contains_Stmt(self, node, ids, rtypes, css):
+    def search_Contains_Stmt(self, node, ids, rtypes):
         pass
 
-    def search_Data_Component_Def_Stmt(self, node, ids, rtypes, css):
+    def search_Data_Component_Def_Stmt(self, node, ids, rtypes):
 
-        self._search_subnodes(node, ids, rtypes, css)
+        self._search_subnodes(node, ids, rtypes)
 
-    def search_Data_Ref(self, node, ids, rtypes, css):
+    def search_Data_Ref(self, node, ids, rtypes):
 
-        # TODO: search part_refs once resolution for the first name is completed.
-        #self._search_subnodes(node, ids, rtypes)
 
-        self._search(node.subnodes[0], ids, rtypes, css)
+        _followups = []
+        _search_subnodes = []
 
-    def search_Deallocate_Stmt(self, node, ids, rtypes, css):
+        # Part_Ref subnodes
+        for pref in node.subnodes[1:]:
+            pname, sec = pref.subnodes
+            _followups.append((pname, res._resmap[Part_Ref]))
+            _search_subnodes.append(sec)
 
-        self._search_subnodes(node, ids, rtypes, css)
+        self._search(node.subnodes[0], ids, rtypes, followups=_followups)
 
-    def search_Declaration_Type_Spec(self, node, ids, rtypes, css):
+        for _s in _search_subnodes:
+            self._search(_s, ids, rtypes)
 
-        self._search_subnodes(node, ids, rtypes, css)
+    def search_Deallocate_Stmt(self, node, ids, rtypes):
 
-    def search_Deferred_Shape_Spec(self, node, ids, rtypes, css):
+        self._search_subnodes(node, ids, rtypes)
+
+    def search_Declaration_Type_Spec(self, node, ids, rtypes):
+
+        self._search_subnodes(node, ids, rtypes)
+
+    def search_Deferred_Shape_Spec(self, node, ids, rtypes):
         pass
 
-    def search_Derived_Type_Def(self, node, ids, rtypes, css):
+    def search_Derived_Type_Def(self, node, ids, rtypes):
 
-        self._search_subnodes(node, ids, rtypes, css)
+        self._search_subnodes(node, ids, rtypes)
 
-    def search_Derived_Type_Stmt(self, node, ids, rtypes, css):
+    def search_Derived_Type_Stmt(self, node, ids, rtypes):
 
-        self._search_subnodes(node, ids, rtypes, css, excludes=[1])
+        self._search_subnodes(node, ids, rtypes, excludes=[1])
 
-    def search_Dimension_Attr_Spec(self, node, ids, rtypes, css):
+    def search_Dimension_Attr_Spec(self, node, ids, rtypes):
         """
         <dimension-attr-spec> = DIMENSION ( <array-spec> )
         """
-        self._search(node.subnodes[1], ids, rtypes, css)
+        self._search(node.subnodes[1], ids, rtypes)
 
-    def search_Else_Stmt(self, node, ids, rtypes, css):
+    def search_Else_Stmt(self, node, ids, rtypes):
         pass
 
-    def search_Entity_Decl(self, node, ids, rtypes, css):
+    def search_Entity_Decl(self, node, ids, rtypes):
 
-        self._search_subnodes(node, ids, rtypes, css, excludes=[0])
+        self._search_subnodes(node, ids, rtypes, excludes=[0])
 
-    def search_Execution_Part(self, node, ids, rtypes, css):
+    def search_Execution_Part(self, node, ids, rtypes):
 
-        self._search_subnodes(node, ids, rtypes, css)
+        self._search_subnodes(node, ids, rtypes)
 
-    def search_Explicit_Shape_Spec(self, node, ids, rtypes, css):
+    def search_Explicit_Shape_Spec(self, node, ids, rtypes):
         """
         <explicit-shape-spec> = [ <lower-bound> : ] <upper-bound>
         """
-        self._search(node.subnodes[0], ids, rtypes, css)
-        self._search(node.subnodes[1], ids, rtypes, css)
+        self._search(node.subnodes[0], ids, rtypes)
+        self._search(node.subnodes[1], ids, rtypes)
 
-    def search_Function_Stmt(self, node, ids, rtypes, css):
+    def search_Function_Stmt(self, node, ids, rtypes):
 
-        self._search_subnodes(node, ids, rtypes, css, excludes=[1])
+        self._search_subnodes(node, ids, rtypes, excludes=[1])
 
-    def search_Function_Subprogram(self, node, ids, rtypes, css):
+    def search_Function_Subprogram(self, node, ids, rtypes):
 
-        self._search_subnodes(node, ids, rtypes, css)
+        self._search_subnodes(node, ids, rtypes)
 
 
-    def search_If_Construct(self, node, ids, rtypes, css):
+    def search_If_Construct(self, node, ids, rtypes):
 
-        self._search_subnodes(node, ids, rtypes, css)
+        self._search_subnodes(node, ids, rtypes)
 
-    def search_If_Stmt(self, node, ids, rtypes, css):
+    def search_If_Stmt(self, node, ids, rtypes):
 
-        self._search_subnodes(node, ids, rtypes, css)
+        self._search_subnodes(node, ids, rtypes)
 
-    def search_If_Then_Stmt(self, node, ids, rtypes, css):
+    def search_If_Then_Stmt(self, node, ids, rtypes):
 
-        self._search_subnodes(node, ids, rtypes, css)
+        self._search_subnodes(node, ids, rtypes)
 
-    def search_Implicit_Part(self, node, ids, rtypes, css):
+    def search_Implicit_Part(self, node, ids, rtypes):
 
-        self._search_subnodes(node, ids, rtypes, css)
+        self._search_subnodes(node, ids, rtypes)
 
-    def search_Implicit_Stmt(self, node, ids, rtypes, css):
+    def search_Implicit_Stmt(self, node, ids, rtypes):
 
-        self._search_subnodes(node, ids, rtypes, css)
+        self._search_subnodes(node, ids, rtypes)
 
-    def search_Initialization(self, node, ids, rtypes, css):
+    def search_Int_Literal_Constant(self, node, ids, rtypes):
 
-        self._search_subnodes(node, ids, rtypes, css)
+        self._search(node.subnodes[1], ids, rtypes)
 
-    def search_Int_Literal_Constant(self, node, ids, rtypes, css):
+    def search_Internal_Subprogram_Part(self, node, ids, rtypes):
 
-        self._search(node.subnodes[1], ids, rtypes, css)
+        self._search(node.subnodes[1], ids, rtypes)
 
-    def search_Internal_Subprogram_Part(self, node, ids, rtypes, css):
-
-        self._search(node.subnodes[1], ids, rtypes, css)
-
-    def search_Intrinsic_Type_Spec(self, node, ids, rtypes, css):
+    def search_Intrinsic_Type_Spec(self, node, ids, rtypes):
         """
         <intrinsic-type-spec> = INTEGER [ <kind-selector> ]
                                 | REAL [ <kind-selector> ]
@@ -1605,11 +1608,11 @@ class Searcher(pyloco.Task):
         i_type, selector = node.subnodes
 
         if i_type == "CHARACTER":
-            self._search(node.subnodes[1], ids, rtypes, css)
+            self._search(node.subnodes[1], ids, rtypes)
         else: 
-            self._search(node.subnodes[1], ids, rtypes, css)
+            self._search(node.subnodes[1], ids, rtypes)
 
-    def search_Level_2_Expr(self, node, ids, rtypes, css):
+    def search_Level_2_Expr(self, node, ids, rtypes):
         """
         <level-2-expr> = [ [ <level-2-expr> ] <add-op> ] <add-operand>
         <level-2-expr> = [ <level-2-expr> <add-op> ] <add-operand>
@@ -1618,18 +1621,18 @@ class Searcher(pyloco.Task):
                      | -
         """
  
-        self._search(node.subnodes[0], ids, rtypes, css)
-        self._search(node.subnodes[2], ids, rtypes, css)
+        self._search(node.subnodes[0], ids, rtypes)
+        self._search(node.subnodes[2], ids, rtypes)
 
-    def search_Level_4_Expr(self, node, ids, rtypes, css):
+    def search_Level_4_Expr(self, node, ids, rtypes):
 
-        self._search(node.subnodes[0], ids, rtypes, css)
-        self._search(node.subnodes[2], ids, rtypes, css)
+        self._search(node.subnodes[0], ids, rtypes)
+        self._search(node.subnodes[2], ids, rtypes)
 
-    def search_Logical_Literal_Constant(self, node, ids, rtypes, css):
+    def search_Logical_Literal_Constant(self, node, ids, rtypes):
         pass
 
-    def search_Loop_Control(self, node, ids, rtypes, css):
+    def search_Loop_Control(self, node, ids, rtypes):
         """
             R830
 
@@ -1642,56 +1645,56 @@ class Searcher(pyloco.Task):
         scalar_logical_expr, counter_expr, optional_delim = node.subnodes
 
         if scalar_logical_expr is not None:
-            self._search(scalar_logical_expr, ids, rtypes, css)
+            self._search(scalar_logical_expr, ids, rtypes)
         elif counter_expr[0] is not None and counter_expr[1] is not None:
-            self._search(counter_expr[0], ids, rtypes, css)
-            self._search(counter_expr[1], ids, rtypes, css)
+            self._search(counter_expr[0], ids, rtypes)
+            self._search(counter_expr[1], ids, rtypes)
 
-    def search_Module(self, node, ids, rtypes, css):
+    def search_Module(self, node, ids, rtypes):
 
-        self._search_subnodes(node, ids, rtypes, css)
+        self._search_subnodes(node, ids, rtypes)
 
-    def search_Module_Stmt(self, node, ids, rtypes, css):
+    def search_Module_Stmt(self, node, ids, rtypes):
         pass
 
-    def search_Module_Subprogram_Part(self, node, ids, rtypes, css):
+    def search_Module_Subprogram_Part(self, node, ids, rtypes):
 
-        self._search_subnodes(node, ids, rtypes, css)
+        self._search_subnodes(node, ids, rtypes)
 
-    def search_Mult_Operand(self, node, ids, rtypes, css):
+    def search_Mult_Operand(self, node, ids, rtypes):
 
-        self._search(node.subnodes[0], ids, rtypes, css)
-        self._search(node.subnodes[2], ids, rtypes, css)
+        self._search(node.subnodes[0], ids, rtypes)
+        self._search(node.subnodes[2], ids, rtypes)
 
-    def search_Nonlabel_Do_Stmt(self, node, ids, rtypes, css):
+    def search_Nonlabel_Do_Stmt(self, node, ids, rtypes):
         """
             R829
 
             <nonlabel-do-stmt> = [ <do-construct-name> : ] DO [ <loop-control> ]
         """
 
-        self._search(node.subnodes[1], ids, rtypes, css)
+        self._search(node.subnodes[1], ids, rtypes)
 
 
-    def search_NoneType(self, node, ids, rtypes, css):
+    def search_NoneType(self, node, ids, rtypes):
         pass
 
-    def search_Part_Ref(self, node, ids, rtypes, css):
+    def search_Part_Ref(self, node, ids, rtypes):
         """
         <part-ref> = <part-name> [ ( <section-subscript-list> ) ]
         """
-        self._search(node.subnodes[0], ids, rtypes, css) # assumes rtypes are already specified
-        self._search(node.subnodes[1], ids, rtypes, css)
+        self._search(node.subnodes[0], ids, rtypes) # assumes rtypes are already specified
+        self._search(node.subnodes[1], ids, rtypes)
 
-    def search_Pointer_Assignment_Stmt(self, node, ids, rtypes, css):
+    def search_Pointer_Assignment_Stmt(self, node, ids, rtypes):
 
-        self._search_subnodes(node, ids, rtypes, css)
+        self._search_subnodes(node, ids, rtypes)
 
-    def search_Prefix_Spec(self, node, ids, rtypes, css):
+    def search_Prefix_Spec(self, node, ids, rtypes):
 
-        self._search_subnodes(node, ids, rtypes, css)
+        self._search_subnodes(node, ids, rtypes)
 
-    def search_Procedure_Designator(self, node, ids, rtypes, css):
+    def search_Procedure_Designator(self, node, ids, rtypes):
         """
         <procedure-designator> = <procedure-name>
                                  | <proc-component-ref>
@@ -1700,23 +1703,18 @@ class Searcher(pyloco.Task):
 
         if "%" in node.subnodes:
             idx = node.subnodes.index("%")
-            self._search_subnodes(node, ids, rtypes, css, includes=node.subnodes[:idx])
+            self._search_subnodes(node, ids, rtypes, includes=node.subnodes[:idx])
         else:
-            self._search_subnodes(node, ids, rtypes, css)
+            self._search_subnodes(node, ids, rtypes)
 
-    def search_Program(self, node, ids, rtypes, css):
+    def search_Program(self, node, ids, rtypes):
+        self._search_subnodes(node, ids, rtypes)
 
-        self._search_subnodes(node, ids, rtypes, css)
+    def search_Real_Literal_Constant(self, node, ids, rtypes):
 
-    def search_Real_Literal_Constant(self, node, ids, rtypes, css):
+        self._search(node.subnodes[1], ids, rtypes)
 
-        self._search(node.subnodes[1], ids, rtypes, css)
-
-    def search_Return_Stmt(self, node, ids, rtypes, css):
-
-        self._search_subnodes(node, ids, rtypes, css)
-
-    def search_Specific_Binding(self, node, ids, rtypes, css):
+    def search_Specific_Binding(self, node, ids, rtypes):
         """
         <specific-binding> = PROCEDURE [ ( <interface-name> ) ] [
             [ , <binding-attr-list> ] :: ] <binding-name> [ => <procedure-name> ]
@@ -1725,63 +1723,63 @@ class Searcher(pyloco.Task):
         """
 
         if node.subnodes[4] is None:
-            self._search_subnodes(node, ids, rtypes, css, excludes=[2])
+            self._search_subnodes(node, ids, rtypes, excludes=[2])
         else:
-            self._search_subnodes(node, ids, rtypes, css, excludes=[2,3])
+            self._search_subnodes(node, ids, rtypes, excludes=[2,3])
 
-    def search_Specification_Part(self, node, ids, rtypes, css):
+    def search_Specification_Part(self, node, ids, rtypes):
 
-        self._search_subnodes(node, ids, rtypes, css)
+        self._search_subnodes(node, ids, rtypes)
 
-    def search_Structure_Constructor_2(self, node, ids, rtypes, css):
+    def search_Structure_Constructor_2(self, node, ids, rtypes):
 
-        self._search(node.subnodes[1], ids, rtypes, css)
+        self._search(node.subnodes[1], ids, rtypes)
 
-    def search_Subroutine_Stmt(self, node, ids, rtypes, css):
+    def search_Subroutine_Stmt(self, node, ids, rtypes):
 
-        self._search_subnodes(node, ids, rtypes, css, excludes=[1])
+        self._search_subnodes(node, ids, rtypes, excludes=[1])
 
-    def search_Subroutine_Subprogram(self, node, ids, rtypes, css):
+    def search_Subroutine_Subprogram(self, node, ids, rtypes):
 
-        self._search_subnodes(node, ids, rtypes, css)
+        self._search_subnodes(node, ids, rtypes)
 
-    def search_Subscript_Triplet(self, node, ids, rtypes, css):
+    def search_Subscript_Triplet(self, node, ids, rtypes):
         """
         <subscript-triplet> = [ <subscript> ] : [ <subscript> ] [ : <stride> ]
         """
 
-        self._search_subnodes(node, ids, rtypes, css)
+        self._search_subnodes(node, ids, rtypes)
 
-    def search_Substring_Range(self, node, ids, rtypes, css):
+    def search_Substring_Range(self, node, ids, rtypes):
 
-        self._search_subnodes(node, ids, rtypes, css)
+        self._search_subnodes(node, ids, rtypes)
 
-    def search_Suffix(self, node, ids, rtypes, css):
+    def search_Suffix(self, node, ids, rtypes):
 
-        self._search(node.subnodes[0], ids, rtypes, css)
+        self._search(node.subnodes[0], ids, rtypes)
 
-    def search_Type_Bound_Procedure_Part(self, node, ids, rtypes, css):
+    def search_Type_Bound_Procedure_Part(self, node, ids, rtypes):
 
-        self._search_subnodes(node, ids, rtypes, css)
+        self._search_subnodes(node, ids, rtypes)
 
-    def search_Type_Declaration_Stmt(self, node, ids, rtypes, css):
+    def search_Type_Declaration_Stmt(self, node, ids, rtypes):
         """
         <type-declaration-stmt> = <declaration-type-spec> [
             [ , <attr-spec> ]... :: ] <entity-decl-list>
         """
 
-        self._search(node.subnodes[0], ids, rtypes, css)
-        self._search(node.subnodes[1], ids, rtypes, css)
-        self._search_noname(node.subnodes[2], ids, rtypes, css)
+        self._search(node.subnodes[0], ids, rtypes)
+        self._search(node.subnodes[1], ids, rtypes)
+        self._search_noname(node.subnodes[2], ids, rtypes)
 
-    def search_Type_Name(self, node, ids, rtypes, css):
+    def search_Type_Name(self, node, ids, rtypes):
 
-        self._search_subnodes(node, ids, rtypes, css)
+        self._search_subnodes(node, ids, rtypes)
 
-    def search_Tuple(self, node, ids, rtypes, css):
+    def search_Tuple(self, node, ids, rtypes):
 
         for subnode in node.subnodes:
-            self._search(subnode, ids, rtypes, css)
+            self._search(subnode, ids, rtypes)
 
-    def search_Use_Stmt(self, node, ids, rtypes, css):
+    def search_Use_Stmt(self, node, ids, rtypes):
         pass

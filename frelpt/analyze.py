@@ -110,13 +110,14 @@ class FrelptAnalyzer(pyloco.Task):
             searcher_forward = {"node" : node}
             _, _sfwd = searcher.run(["--log", "searcher"], forward=searcher_forward)
 
-            for node, res in _sfwd["ids"].items():
+            for node, (res, followups) in _sfwd["ids"].items():
 
                 #if len(analyzer_info["modules"].keys()) == 1: import pdb; pdb.set_trace()
 
                 resolver_forward = {
                     "node" : node,
                     "resolvers" : res,
+                    "followups" : followups,
                     "modules": analyzer_info["modules"],
                     "respaths": analyzer_info["respaths"],
                     "invrespaths": analyzer_info["invrespaths"],
