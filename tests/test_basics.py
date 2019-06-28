@@ -37,7 +37,7 @@ class BasicTests(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tempdir)
 
-    def test_basic1(self):
+    def ttest_basic1(self):
 
         retval, forward = pyloco.perform(frelpt.FrelptTask, argv=[
             _target1,
@@ -56,7 +56,7 @@ class BasicTests(unittest.TestCase):
         self.assertEqual(out1[1].split()[-1], '195520.172') 
         self.assertEqual(out2[1].split()[-1], '195520.172') 
 
-    def test_basic2(self):
+    def ttest_basic2(self):
 
         retval, forward = pyloco.perform(frelpt.FrelptTask, argv=[
             _target2,
@@ -75,7 +75,7 @@ class BasicTests(unittest.TestCase):
         self.assertEqual(out1[1].split()[-1], '195520.172') 
         self.assertEqual(out2[1].split()[-1], '195520.172') 
 
-    def test_basic3(self):
+    def ttest_basic3(self):
 
         retval, forward = pyloco.perform(frelpt.FrelptTask, argv=[
             _target3,

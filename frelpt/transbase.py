@@ -5,7 +5,7 @@ from __future__ import unicode_literals, print_function
 from frelpt.fparser_util import (get_stmt_parent, collect_names, get_typedecl_parent,
         wrap_stmt_with_doblock, get_partref, replace_subnode, is_partref, is_entitydecl,
         is_dtype_name, is_procedure_name, is_section_subscript_list, is_name,
-        is_structure_constructor_2)
+        is_structure_constructor_2, is_subroutine_name)
 
 # pushdown originating source file
 class FrelptTransBase(object):

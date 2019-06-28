@@ -475,3 +475,24 @@ def is_dummy_arg_list(node):
 
     return hasattr(node, "wrapped") and isinstance(node.wrapped, Dummy_Arg_List)
 
+def is_comment(node):
+
+    return hasattr(node, "wrapped") and isinstance(node.wrapped, Comment)
+
+def is_dostmt(node):
+
+    return hasattr(node, "wrapped") and isinstance(node.wrapped, (Label_Do_Stmt, Nonlabel_Do_Stmt))
+
+def is_enddo(node):
+
+    return hasattr(node, "wrapped") and isinstance(node.wrapped, End_Do_Stmt)
+
+def is_blank_dobody(doconst):
+
+    for subnode in doconst.subnodes:
+        if is_comment(subnode) or is_dostmt(subnode) or is_enddo(subnode):
+            continue
+
+        return False
+
+    return True

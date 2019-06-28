@@ -319,20 +319,19 @@ class ResBuilder(object):
                     else:
                         raise Exception("Unprocessed node: %s" % name)
 
-        # TODO: create res map instead of calculating everytime
-        with open("resmap.csv", "w", newline="") as f:
-            for n, res in self._resmap.items():
-                f.write("%s," % n.__name__)
-                if isinstance(res, PassSet):
-                    f.write("PASS\n")
-                else:
-                    lres = list(res)
-                    if lres:
-                        for r in lres[:-1]: 
-                            f.write("%s," % r.__name__)
-                        f.write("%s\n" % lres[-1].__name__)
+            with open("resmap.csv", "w", newline="") as f:
+                for n, res in self._resmap.items():
+                    f.write("%s," % n.__name__)
+                    if isinstance(res, PassSet):
+                        f.write("PASS\n")
                     else:
-                        f.write("\n")
+                        lres = list(res)
+                        if lres:
+                            for r in lres[:-1]: 
+                                f.write("%s," % r.__name__)
+                            f.write("%s\n" % lres[-1].__name__)
+                        else:
+                            f.write("\n")
 
     def _getnode(self, name):
 
@@ -636,10 +635,6 @@ class ResBuilder(object):
         path.append(Component_Decl_List)
         return r1 | r2 | self._resres(path)
 
-    def res_Data_Stmt_Value(self, path):
-
-        return self._subresolvers(path)
-
     def res_Data_Implied_Do(self, path):
 
         return self._subresolvers(path)
@@ -661,6 +656,10 @@ class ResBuilder(object):
 
         path.append(Data_Implied_Do)
         return res_typedecl | self._resres(path)
+
+    def res_Data_Stmt_Value(self, path):
+
+        return self._subresolvers(path)
 
     def res_Data_Target(self, path):
 
@@ -1019,7 +1018,7 @@ class ResBuilder(object):
     def res_Part_Ref(self, path):
 
         path.append(Section_Subscript_List)
-        return res_typedecl | self._resres(path)
+        return res_typedecl | res_part | self._resres(path)
 
     def res_Pointer_Assignment_Stmt(self, path):
 
@@ -1327,14 +1326,14 @@ class Searcher(pyloco.Task):
         if targs.node:
             #self.log_debug("Searching '%s'"%str(targs.node.wrapped))
 
-            self._search(targs.node, ids, set(res_all_stmts.keys()))
+            self._search(targs.node, ids, set(res_all_stmts.keys()), None)
 
             #self.log_debug(str([n.wrapped for n in ids.keys()]))
             #self.log_debug(str([n.items() for n in ids.values()]))
 
         self.add_forward(ids=ids)
 
-    def _search(self, node, ids, rtypes):
+    def _search(self, node, ids, rtypes, followups=None):
 
         clsname = node.__class__.__name__
 
@@ -1342,7 +1341,7 @@ class Searcher(pyloco.Task):
             return
 
         if clsname == "Name":
-            ids[node] = rtypes
+            ids[node] = (rtypes, followups)
             return
 
         if hasattr(node, "wrapped"):
@@ -1364,7 +1363,6 @@ class Searcher(pyloco.Task):
                 self._search(subnode, ids, set(rtypes))
         else:
             getattr(self, "search_"+clsname)(node, ids, rtypes)
-
 
     def _search_subnodes(self, node, ids, rtypes, includes=None, excludes=[]):
 
@@ -1396,11 +1394,7 @@ class Searcher(pyloco.Task):
 
     def search_Access_Stmt(self, node, ids, rtypes):
 
-        import pdb; pdb.set_trace()
-
-    def search_Add_Operand(self, node, ids, rtypes):
-
-        self._search_subnodes(node, ids, rtypes, excludes=[1])
+        self._search(node.subnodes[1], ids, rtypes)
 
     def search_Actual_Arg(self, node, ids, rtypes):
         """
@@ -1418,10 +1412,30 @@ class Searcher(pyloco.Task):
         """
         import pdb; pdb.set_trace()
 
+    def search_Add_Operand(self, node, ids, rtypes):
 
-    def resolve_Allocate_Stmt(self, node, ids, rtypes):
+        self._search(node.subnodes[0], ids, rtypes)
+        self._search(node.subnodes[2], ids, rtypes)
 
-        import pdb; pdb.set_trace()
+    def search_Allocate_Shape_Spec(self, node, ids, rtypes):
+
+        self._search_subnodes(node, ids, rtypes)
+
+    def search_Allocate_Stmt(self, node, ids, rtypes):
+
+        self._search_subnodes(node, ids, rtypes)
+
+    def search_Allocation(self, node, ids, rtypes):
+
+        self._search_subnodes(node, ids, rtypes)
+
+    def search_And_Operand(self, node, ids, rtypes):
+
+        self._search(node.subnodes[1], ids, rtypes)
+
+    def search_Array_Section(self, node, ids, rtypes):
+
+        self._search_subnodes(node, ids, rtypes)
 
     def search_Assignment_Stmt(self, node, ids, rtypes):
         """
@@ -1462,12 +1476,52 @@ class Searcher(pyloco.Task):
     def search_Comment(self, node, ids, rtypes):
         pass
 
+    def search_Component_Attr_Spec(self, node, ids, rtypes):
+
+        self._search_subnodes(node, ids, rtypes)
+
+    def search_Component_Decl(self, node, ids, rtypes):
+
+        self._search_subnodes(node, ids, rtypes, excludes=[0])
+
+    def search_Component_Part(self, node, ids, rtypes):
+
+        self._search_subnodes(node, ids, rtypes)
+    
     def search_Contains_Stmt(self, node, ids, rtypes):
         pass
+
+    def search_Data_Component_Def_Stmt(self, node, ids, rtypes):
+
+        self._search_subnodes(node, ids, rtypes)
+
+    def search_Data_Ref(self, node, ids, rtypes):
+
+
+        _followups = []
+        _search_subnodes = []
+
+        # Part_Ref subnodes
+        for pref in node.subnodes[1:]:
+            pname, sec = pref.subnodes
+            _followups.append((pname, res._resmap[Part_Ref]))
+            _search_subnodes.append(sec)
+
+        self._search(node.subnodes[0], ids, rtypes, followups=_followups)
+
+        for _s in _search_subnodes:
+            self._search(_s, ids, rtypes)
+
+    def search_Deallocate_Stmt(self, node, ids, rtypes):
+
+        self._search_subnodes(node, ids, rtypes)
 
     def search_Declaration_Type_Spec(self, node, ids, rtypes):
 
         self._search_subnodes(node, ids, rtypes)
+
+    def search_Deferred_Shape_Spec(self, node, ids, rtypes):
+        pass
 
     def search_Derived_Type_Def(self, node, ids, rtypes):
 
@@ -1482,6 +1536,9 @@ class Searcher(pyloco.Task):
         <dimension-attr-spec> = DIMENSION ( <array-spec> )
         """
         self._search(node.subnodes[1], ids, rtypes)
+
+    def search_Else_Stmt(self, node, ids, rtypes):
+        pass
 
     def search_Entity_Decl(self, node, ids, rtypes):
 
@@ -1509,11 +1566,15 @@ class Searcher(pyloco.Task):
 
     def search_If_Construct(self, node, ids, rtypes):
 
-        import pdb; pdb.set_trace()
+        self._search_subnodes(node, ids, rtypes)
 
     def search_If_Stmt(self, node, ids, rtypes):
 
-        import pdb; pdb.set_trace()
+        self._search_subnodes(node, ids, rtypes)
+
+    def search_If_Then_Stmt(self, node, ids, rtypes):
+
+        self._search_subnodes(node, ids, rtypes)
 
     def search_Implicit_Part(self, node, ids, rtypes):
 
@@ -1529,7 +1590,7 @@ class Searcher(pyloco.Task):
 
     def search_Internal_Subprogram_Part(self, node, ids, rtypes):
 
-        import pdb; pdb.set_trace()
+        self._search(node.subnodes[1], ids, rtypes)
 
     def search_Intrinsic_Type_Spec(self, node, ids, rtypes):
         """
@@ -1560,6 +1621,11 @@ class Searcher(pyloco.Task):
                      | -
         """
  
+        self._search(node.subnodes[0], ids, rtypes)
+        self._search(node.subnodes[2], ids, rtypes)
+
+    def search_Level_4_Expr(self, node, ids, rtypes):
+
         self._search(node.subnodes[0], ids, rtypes)
         self._search(node.subnodes[2], ids, rtypes)
 
@@ -1597,7 +1663,8 @@ class Searcher(pyloco.Task):
 
     def search_Mult_Operand(self, node, ids, rtypes):
 
-        import pdb; pdb.set_trace()
+        self._search(node.subnodes[0], ids, rtypes)
+        self._search(node.subnodes[2], ids, rtypes)
 
     def search_Nonlabel_Do_Stmt(self, node, ids, rtypes):
         """
@@ -1621,11 +1688,11 @@ class Searcher(pyloco.Task):
 
     def search_Pointer_Assignment_Stmt(self, node, ids, rtypes):
 
-        import pdb; pdb.set_trace()
+        self._search_subnodes(node, ids, rtypes)
 
     def search_Prefix_Spec(self, node, ids, rtypes):
 
-        import pdb; pdb.set_trace()
+        self._search_subnodes(node, ids, rtypes)
 
     def search_Procedure_Designator(self, node, ids, rtypes):
         """
@@ -1680,6 +1747,10 @@ class Searcher(pyloco.Task):
         """
         <subscript-triplet> = [ <subscript> ] : [ <subscript> ] [ : <stride> ]
         """
+
+        self._search_subnodes(node, ids, rtypes)
+
+    def search_Substring_Range(self, node, ids, rtypes):
 
         self._search_subnodes(node, ids, rtypes)
 
